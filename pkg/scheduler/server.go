@@ -25,10 +25,13 @@ func NewServer(addr string, sch *Scheduler) *Server {
 func (s *Server) Run() {
 
 	r := mux.NewRouter()
+	r.HandleFunc("/v1/registerNode", s._registerNode).Methods("POST")
 	r.HandleFunc("/v1/addNodeConnection/{nodeName}", s._addNodeConnection).Methods("PUT")
 	r.HandleFunc("/v1/removeNodeConnection/{nodeName}", s._removeNodeConnection).Methods("DELETE")
 	r.HandleFunc("/v1/setNodeConnections/{nodeName}/{conns}", s._setNodeConnections).Methods("PUT")
-	r.HandleFunc("/v1/registerNode", s._registerNode).Methods("POST")
+	r.HandleFunc("/v1/removeNodeForLayer/{layer}/{nodeName}", s._removeNodeForLayer).Methods("DELETE")
+	r.HandleFunc("/v1/addNodeForLayer/{layer}/{nodeName}", s._addNodeForLayer).Methods("PUT")
+	r.HandleFunc("/v1/schedule/{layer}", s._schedule).Methods("GET")
 
 	logrus.Infof("starting up server on %s", s.Address)
 	http.Handle("/", r)
@@ -106,9 +109,95 @@ func (s *Server) _registerNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.Scheduler.registerNode(_node)
+	err = s.Scheduler.registerNode(_node)
+	if err != nil {
+		_apiResponse(w, r, 500, map[string]interface{}{"status": "error", "message": err.Error()})
+	}
+
 	_apiResponse(w, r, 200, map[string]interface{}{
-		"status":  "pending",
-		"message": "request received",
+		"status":  "success",
+		"message": "node registered",
 	})
+}
+
+func (s *Server) _removeNodeForLayer(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	node, ok := vars["nodeName"]
+	if !ok {
+		_apiResponse(w, r, 400, map[string]interface{}{"status": "error", "message": "missing node name"})
+		return
+	}
+
+	layer, ok := vars["layer"]
+	if !ok {
+		_apiResponse(w, r, 400, map[string]interface{}{"status": "error", "message": "missing layer sha"})
+		return
+	}
+
+	err := s.Scheduler.removeNodeForLayer(layer, node, false)
+	if err != nil {
+		_apiResponse(w, r, 500, map[string]interface{}{"status": "error", "message": err.Error()})
+		return
+	}
+
+	_apiResponse(w, r, 200, map[string]interface{}{
+		"status":  "success",
+		"message": "layer/node score reduced by 1",
+	})
+}
+
+func (s *Server) _addNodeForLayer(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	node, ok := vars["nodeName"]
+	if !ok {
+		_apiResponse(w, r, 400, map[string]interface{}{"status": "error", "message": "missing node name"})
+		return
+	}
+
+	layer, ok := vars["layer"]
+	if !ok {
+		_apiResponse(w, r, 400, map[string]interface{}{"status": "error", "message": "missing layer sha"})
+		return
+	}
+
+	err := s.Scheduler.addNodeForLayer(layer, node)
+	if err != nil {
+		_apiResponse(w, r, 500, map[string]interface{}{"status": "error", "message": err.Error()})
+		return
+	}
+
+	_apiResponse(w, r, 200, map[string]interface{}{
+		"status":  "success",
+		"message": "layer/node score increased by 1",
+	})
+}
+
+func (s *Server) _schedule(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	layer, ok := vars["layer"]
+	if !ok {
+		_apiResponse(w, r, 400, map[string]interface{}{"status": "error", "message": "missing layer sha"})
+		return
+	}
+
+	node, err := s.Scheduler.schedule(layer)
+	if err != nil {
+		_apiResponse(w, r, 500, map[string]interface{}{"status": "error", "message": err.Error()})
+		return
+	}
+
+	code := 200
+	data := map[string]interface{}{
+		"status": "success",
+		"node":   node,
+	}
+	if node.Name == "DUMMY_CANDIDATE" || node.Name == "" {
+		code = 404
+		data = map[string]interface{}{
+			"status": "warning",
+			"node":   "node not found",
+		}
+	}
+
+	_apiResponse(w, r, code, data)
 }

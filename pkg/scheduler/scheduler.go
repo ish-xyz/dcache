@@ -61,7 +61,9 @@ func (sch *Scheduler) setNodeConnections(nodeName string, conns int) error {
 func (sch *Scheduler) registerNode(node *storage.NodeSchema) error {
 
 	sch.Store.WriteNode(node)
-	return nil
+
+	_, err := sch.Store.ReadNode(node.Name)
+	return err
 }
 
 // Called by the client when the download of a given layer is completed
@@ -89,7 +91,8 @@ func (sch *Scheduler) removeNodeForLayer(layer, nodeName string, force bool) err
 // Look for all the nodes that have a specific layer,
 // then look for the node that has the least connection
 // if node not found, return nil
-func (sch *Scheduler) findNodeForLayer(layer string) (*storage.NodeSchema, error) {
+// TODO: add more advanced scheduling
+func (sch *Scheduler) schedule(layer string) (*storage.NodeSchema, error) {
 
 	candidate := &storage.NodeSchema{
 		Connections: sch.MaxNodesConnections + 1,
