@@ -11,14 +11,16 @@ import (
 )
 
 type Server struct {
-	Address   string `json:"address"`
+	Address   string
 	Scheduler *Scheduler
+	TLSConfig string
 }
 
 func NewServer(addr string, sch *Scheduler) *Server {
 	return &Server{
 		Address:   addr,
 		Scheduler: sch,
+		TLSConfig: "",
 	}
 }
 

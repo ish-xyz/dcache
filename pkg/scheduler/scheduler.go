@@ -9,14 +9,16 @@ import (
 // consider using sync mutex or redis directly
 
 type Scheduler struct {
-	MaxNodesConnections int
-	Store               storage.Storage
+	Algo     string
+	MaxProcs int
+	Store    storage.Storage
 }
 
-func NewScheduler(store storage.Storage, maxConns int) *Scheduler {
+func NewScheduler(store storage.Storage, maxProcs int, algo string) *Scheduler {
 	return &Scheduler{
-		MaxNodesConnections: maxConns,
-		Store:               store,
+		Algo:     algo, //@ish-xyz 21/08/2022 TODO: not fully implemented yet
+		MaxProcs: maxProcs,
+		Store:    store,
 	}
 }
 
@@ -95,7 +97,7 @@ func (sch *Scheduler) removeNodeForLayer(layer, nodeName string, force bool) err
 func (sch *Scheduler) schedule(layer string) (*storage.NodeSchema, error) {
 
 	candidate := &storage.NodeSchema{
-		Connections: sch.MaxNodesConnections + 1,
+		Connections: sch.MaxProcs + 1,
 		Name:        "DUMMY_CANDIDATE",
 		IPv4:        "127.0.0.1",
 	}
@@ -110,7 +112,7 @@ func (sch *Scheduler) schedule(layer string) (*storage.NodeSchema, error) {
 			logrus.Warn("scheduling: node is not registered, skipping")
 			continue
 		}
-		if node.Connections < sch.MaxNodesConnections && node.Connections < candidate.Connections {
+		if node.Connections < sch.MaxProcs && node.Connections < candidate.Connections {
 			candidate = node
 		}
 		if candidate.Connections == 0 {
