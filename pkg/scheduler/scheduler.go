@@ -117,5 +117,11 @@ func (sch *Scheduler) schedule(layer string) (*storage.NodeSchema, error) {
 			return candidate, nil
 		}
 	}
+
+	// Cleanup candidate, this it's a bit ugly.. needs adjustments
+	if candidate.Name == "DUMMY_CANDIDATE" {
+		candidate = &storage.NodeSchema{}
+	}
+
 	return candidate, nil
 }

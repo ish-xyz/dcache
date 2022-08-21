@@ -191,7 +191,7 @@ func (s *Server) _schedule(w http.ResponseWriter, r *http.Request) {
 		"status": "success",
 		"node":   node,
 	}
-	if node.Name == "DUMMY_CANDIDATE" || node.Name == "" {
+	if node.Name == "" {
 		code = 404
 		data = map[string]interface{}{
 			"status": "warning",
