@@ -59,6 +59,7 @@ func (sch *Scheduler) setNodeConnections(nodeName string, conns int) error {
 
 // Add node to list of nodes
 func (sch *Scheduler) registerNode(node *storage.NodeSchema) error {
+
 	sch.Store.WriteNode(node)
 	return nil
 }
@@ -84,10 +85,6 @@ func (sch *Scheduler) removeNodeForLayer(layer, nodeName string, force bool) err
 	}
 	return nil
 }
-
-//---------------------------------------------------------------------------
-// TODO: I'm here
-//---------------------------------------------------------------------------
 
 // Look for all the nodes that have a specific layer,
 // then look for the node that has the least connection

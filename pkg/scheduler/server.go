@@ -28,9 +28,10 @@ func (s *Server) Run() {
 	r.HandleFunc("/v1/addNodeConnection/{nodeName}", s._addNodeConnection).Methods("PUT")
 	r.HandleFunc("/v1/removeNodeConnection/{nodeName}", s._removeNodeConnection).Methods("DELETE")
 	r.HandleFunc("/v1/setNodeConnections/{nodeName}/{conns}", s._setNodeConnections).Methods("PUT")
-	r.HandleFunc("/v1/ ", s._registerNode).Methods("POST")
+	r.HandleFunc("/v1/registerNode", s._registerNode).Methods("POST")
 
 	logrus.Infof("starting up server on %s", s.Address)
+	http.Handle("/", r)
 	http.ListenAndServe(s.Address, r)
 }
 
@@ -97,9 +98,9 @@ func (s *Server) _setNodeConnections(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) _registerNode(w http.ResponseWriter, r *http.Request) {
 
-	decoder := json.NewDecoder(r.Body)
 	var _node *storage.NodeSchema
-	err := decoder.Decode(&_node)
+	err := json.NewDecoder(r.Body).Decode(&_node)
+
 	if err != nil {
 		_apiResponse(w, r, 400, map[string]interface{}{"status": "error", "message": "malformed payload"})
 		return

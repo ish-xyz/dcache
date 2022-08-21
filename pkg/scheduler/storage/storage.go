@@ -17,5 +17,8 @@ type Storage interface {
 
 // Initialise storage for scheduler
 func NewStorage(storageType string, opts map[string]string) Storage {
-	return &MemoryStorage{}
+	return &MemoryStorage{
+		LayersStorage: map[string]map[string]int{},
+		Nodes:         map[string]*NodeSchema{},
+	}
 }
