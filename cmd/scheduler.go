@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/go-playground/validator"
 	"github.com/ish-xyz/dreg/pkg/scheduler"
 	"github.com/ish-xyz/dreg/pkg/scheduler/storage"
 	"github.com/spf13/cobra"
@@ -27,7 +28,7 @@ func schedulerCLI() {
 	schedulerCmd.PersistentFlags().StringVarP(&schedulerConfig, "config", "c", "", "Config file path")
 	schedulerCmd.PersistentFlags().StringVarP(&schedulerAddress, "address", "a", ":8000", "Address of the scheduler")
 	schedulerCmd.PersistentFlags().StringVarP(&schedulerStorage, "storage-type", "s", "memory", "Backend storage for schedulers")
-	schedulerCmd.PersistentFlags().StringVarP(&schedulerAlgo, "algo", "x", "LeastConnections", "Algorithm used by scheduler: LeastConnections.")
+	schedulerCmd.PersistentFlags().StringVarP(&schedulerAlgo, "algo", "x", "LeastConnections", "Algorithm used by scheduler.")
 	schedulerCmd.PersistentFlags().IntVarP(&schedulerMaxProcs, "max-procs", "m", 10, "Max amount of concurrent connections for nodes.")
 
 	viper.BindPFlag("scheduler.address", schedulerCmd.PersistentFlags().Lookup("address"))
@@ -49,11 +50,14 @@ func startScheduler(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	validate := validator.New()
+
 	store := storage.NewStorage(
 		viper.Get("scheduler.storage.type").(string),
 		storageOpts,
 	)
 	sch := scheduler.NewScheduler(
+		validate,
 		store,
 		viper.Get("scheduler.maxProcs").(int),
 		viper.Get("scheduler.algo").(string),

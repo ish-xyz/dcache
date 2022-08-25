@@ -12,7 +12,12 @@ type MemoryStorage struct {
 
 var lock = sync.RWMutex{}
 
-func (store *MemoryStorage) WriteNode(node *NodeSchema) error {
+func (store *MemoryStorage) WriteNode(node *NodeSchema, force bool) error {
+
+	_, ok := store.Nodes[node.Name]
+	if ok && !force {
+		return fmt.Errorf("node already exists")
+	}
 	store.Nodes[node.Name] = node
 	return nil
 }

@@ -2,14 +2,15 @@ package storage
 
 //
 type NodeSchema struct {
-	Name        string `json:"name"`
-	IPv4        string `json:"ipv4"`
-	Connections int    `json:"connections"`
+	Name        string `json:"name" validate:"required,alphanum"`
+	IPv4        string `json:"ip" validate:"required,ip"`
+	Connections int    `json:"connections" validate:"required"`
+	Port        int    `json:"port" validate:"required"`
 }
 
 // Write() -> location,
 type Storage interface {
-	WriteNode(node *NodeSchema) error
+	WriteNode(node *NodeSchema, force bool) error
 	ReadNode(nodeName string) (*NodeSchema, error)
 	WriteLayer(layer string, nodeName string, ops string) error
 	ReadLayer(layer string) (map[string]int, error)

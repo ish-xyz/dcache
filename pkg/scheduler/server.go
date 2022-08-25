@@ -27,6 +27,7 @@ func NewServer(addr string, sch *Scheduler) *Server {
 func (s *Server) Run() {
 
 	r := mux.NewRouter()
+
 	r.HandleFunc("/v1/registerNode", s._registerNode).Methods("POST")
 	r.HandleFunc("/v1/addNodeConnection/{nodeName}", s._addNodeConnection).Methods("PUT")
 	r.HandleFunc("/v1/removeNodeConnection/{nodeName}", s._removeNodeConnection).Methods("DELETE")
@@ -114,6 +115,7 @@ func (s *Server) _registerNode(w http.ResponseWriter, r *http.Request) {
 	err = s.Scheduler.registerNode(_node)
 	if err != nil {
 		_apiResponse(w, r, 500, map[string]interface{}{"status": "error", "message": err.Error()})
+		return
 	}
 
 	_apiResponse(w, r, 200, map[string]interface{}{
@@ -200,6 +202,5 @@ func (s *Server) _schedule(w http.ResponseWriter, r *http.Request) {
 			"node":   "node not found",
 		}
 	}
-
 	_apiResponse(w, r, code, data)
 }

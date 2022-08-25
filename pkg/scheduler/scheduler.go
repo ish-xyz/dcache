@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"github.com/go-playground/validator"
 	"github.com/ish-xyz/dreg/pkg/scheduler/storage"
 	"github.com/sirupsen/logrus"
 )
@@ -8,13 +9,16 @@ import (
 // Scheduler main functions
 // consider using sync mutex or redis directly
 
+var validate *validator.Validate
+
 type Scheduler struct {
 	Algo     string
 	MaxProcs int
 	Store    storage.Storage
 }
 
-func NewScheduler(store storage.Storage, maxProcs int, algo string) *Scheduler {
+func NewScheduler(val *validator.Validate, store storage.Storage, maxProcs int, algo string) *Scheduler {
+	validate = val
 	return &Scheduler{
 		Algo:     algo, //@ish-xyz 21/08/2022 TODO: not fully implemented yet
 		MaxProcs: maxProcs,
@@ -31,8 +35,7 @@ func (sch *Scheduler) addNodeConnection(nodeName string) error {
 	}
 
 	node.Connections += 1
-	sch.Store.WriteNode(node)
-	return nil
+	return sch.Store.WriteNode(node, false)
 }
 
 // Remove connection for specified node
@@ -43,8 +46,7 @@ func (sch *Scheduler) removeNodeConnection(nodeName string) error {
 		return err
 	}
 	node.Connections -= 1
-	sch.Store.WriteNode(node)
-	return nil
+	return sch.Store.WriteNode(node, false)
 }
 
 // Called by nodes when they periodically advertise the number of connections
@@ -55,17 +57,17 @@ func (sch *Scheduler) setNodeConnections(nodeName string, conns int) error {
 		return err
 	}
 	node.Connections = conns
-	sch.Store.WriteNode(node)
-	return nil
+	return sch.Store.WriteNode(node, true)
 }
 
 // Add node to list of nodes
 func (sch *Scheduler) registerNode(node *storage.NodeSchema) error {
 
-	sch.Store.WriteNode(node)
-
-	_, err := sch.Store.ReadNode(node.Name)
-	return err
+	err := validate.Struct(node)
+	if err != nil {
+		return err
+	}
+	return sch.Store.WriteNode(node, false)
 }
 
 // Called by the client when the download of a given layer is completed
