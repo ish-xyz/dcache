@@ -1,0 +1,13 @@
+package node
+
+/*
+Node Client should:
+
+- have a proxy pass for the upstream request (docker pull node-address:node-port/image:tag),
+	proxy pass should keep the headers/requests information
+- call scheduler and ask if there's any other node that has a specific layer
+- if scheduler return a node, download from that node
+- if no node is return download from upstream
+- notify scheduler that you node has the image
+
+*/

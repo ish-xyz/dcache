@@ -1,6 +1,6 @@
 package storage
 
-//
+// Node information necessary for the scheduler
 type NodeSchema struct {
 	Name        string `json:"name" validate:"required,alphanum"`
 	IPv4        string `json:"ip" validate:"required,ip"`

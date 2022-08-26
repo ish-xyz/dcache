@@ -22,7 +22,9 @@ var (
 
 func init() {
 	rootCmd.AddCommand(schedulerCmd)
+	rootCmd.AddCommand(nodeCmd)
 	schedulerCLI()
+	nodeCLI()
 }
 
 func Execute() error {
