@@ -1,7 +1,7 @@
 package storage
 
 // Node information necessary for the scheduler
-type NodeSchema struct {
+type NodeStat struct {
 	Name        string `json:"name" validate:"required,alphanum"`
 	IPv4        string `json:"ip" validate:"required,ip"`
 	Connections int    `json:"connections" validate:"required"`
@@ -10,8 +10,8 @@ type NodeSchema struct {
 
 // Write() -> location,
 type Storage interface {
-	WriteNode(node *NodeSchema, force bool) error
-	ReadNode(nodeName string) (*NodeSchema, error)
+	WriteNode(node *NodeStat, force bool) error
+	ReadNode(nodeName string) (*NodeStat, error)
 	WriteLayer(layer string, nodeName string, ops string) error
 	ReadLayer(layer string) (map[string]int, error)
 }
@@ -20,6 +20,6 @@ type Storage interface {
 func NewStorage(storageType string, opts map[string]string) Storage {
 	return &MemoryStorage{
 		LayersStorage: map[string]map[string]int{},
-		Nodes:         map[string]*NodeSchema{},
+		Nodes:         map[string]*NodeStat{},
 	}
 }

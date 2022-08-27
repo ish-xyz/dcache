@@ -39,6 +39,10 @@ func (s *Server) Run() {
 	logrus.Infof("starting up server on %s", s.Address)
 	http.Handle("/", r)
 	http.ListenAndServe(s.Address, r)
+
+	// TODO: add default response for other codes
+	// TODO: add redis storage
+	// TODO: add authentication
 }
 
 func _apiResponse(w http.ResponseWriter, r *http.Request, code int, data map[string]interface{}) {
@@ -104,7 +108,7 @@ func (s *Server) _setNodeConnections(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) _registerNode(w http.ResponseWriter, r *http.Request) {
 
-	var _node *storage.NodeSchema
+	var _node *storage.NodeStat
 	err := json.NewDecoder(r.Body).Decode(&_node)
 
 	if err != nil {
@@ -198,8 +202,8 @@ func (s *Server) _schedule(w http.ResponseWriter, r *http.Request) {
 	if node.Name == "" {
 		code = 404
 		data = map[string]interface{}{
-			"status": "warning",
-			"node":   "node not found",
+			"status": "success",
+			"node":   "",
 		}
 	}
 	_apiResponse(w, r, code, data)

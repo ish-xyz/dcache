@@ -25,11 +25,11 @@ func startNode(cmd *cobra.Command, args []string) {
 	proxy := &node.Proxy{
 		Node: &node.Node{
 			Name: "mynode",
+			IPv4: "127.0.0.1",
 		},
 		Upstream: "https://google.com",
 		Address:  ":6000",
 		Regex:    re,
-		IPv4:     "127.0.0.1",
 	}
 
 	proxy.Run()

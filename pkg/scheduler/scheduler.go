@@ -61,7 +61,7 @@ func (sch *Scheduler) setNodeConnections(nodeName string, conns int) error {
 }
 
 // Add node to list of nodes
-func (sch *Scheduler) registerNode(node *storage.NodeSchema) error {
+func (sch *Scheduler) registerNode(node *storage.NodeStat) error {
 
 	err := validate.Struct(node)
 	if err != nil {
@@ -96,9 +96,9 @@ func (sch *Scheduler) removeNodeForLayer(layer, nodeName string, force bool) err
 // then look for the node that has the least connection
 // if node not found, return nil
 // TODO: add more advanced scheduling
-func (sch *Scheduler) schedule(layer string) (*storage.NodeSchema, error) {
+func (sch *Scheduler) schedule(layer string) (*storage.NodeStat, error) {
 
-	candidate := &storage.NodeSchema{
+	candidate := &storage.NodeStat{
 		Connections: sch.MaxProcs + 1,
 		Name:        "DUMMY_CANDIDATE",
 		IPv4:        "127.0.0.1",
@@ -124,7 +124,7 @@ func (sch *Scheduler) schedule(layer string) (*storage.NodeSchema, error) {
 
 	// Cleanup candidate, this it's a bit ugly.. needs adjustments
 	if candidate.Name == "DUMMY_CANDIDATE" {
-		candidate = &storage.NodeSchema{}
+		candidate = &storage.NodeStat{}
 	}
 
 	return candidate, nil

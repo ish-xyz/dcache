@@ -7,12 +7,12 @@ import (
 
 type MemoryStorage struct {
 	LayersStorage map[string]map[string]int
-	Nodes         map[string]*NodeSchema
+	Nodes         map[string]*NodeStat
 }
 
 var lock = sync.RWMutex{}
 
-func (store *MemoryStorage) WriteNode(node *NodeSchema, force bool) error {
+func (store *MemoryStorage) WriteNode(node *NodeStat, force bool) error {
 
 	_, ok := store.Nodes[node.Name]
 	if ok && !force {
@@ -22,7 +22,7 @@ func (store *MemoryStorage) WriteNode(node *NodeSchema, force bool) error {
 	return nil
 }
 
-func (store *MemoryStorage) ReadNode(nodeName string) (*NodeSchema, error) {
+func (store *MemoryStorage) ReadNode(nodeName string) (*NodeStat, error) {
 	lock.Lock()
 	defer lock.Unlock()
 

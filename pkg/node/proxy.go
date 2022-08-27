@@ -1,6 +1,7 @@
 package node
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -10,31 +11,36 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type Node struct {
-	Name string `json:"name"`
-}
-
 type Proxy struct {
 	Node     *Node          `json:"node"`
 	Upstream string         `json:"upstream"`
 	Address  string         `json:"address"`
 	Regex    *regexp.Regexp `json:"regex"`
-	IPv4     string         `json:"ipv4"`
 }
 
 // ProxyRequestHandler handles the http request using proxy
 func (no *Proxy) ProxyRequestHandler(proxy *httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if no.Regex.MatchString(r.RequestURI) {
-			logrus.Infof("TODO: contact scheduler for download\n")
+
+			ups := fmt.Sprintf("%s%s", no.Upstream, r.RequestURI)
+			resp, err := http.Head(ups)
+			if err != nil || resp.StatusCode != 200 {
+				goto upstream
+			}
 			// TODO: contact scheduler for download
 			// Call scheduler and ask to schedule()
 
 			// Download from node if found
 			// calculate SHA256, verify SHA256
 			// if SHA256 is valid, communicate to scheduler that this node has that layer too
+
+			fmt.Println("caching")
+			proxy.ServeHTTP(w, r)
 			return
 		}
+	upstream:
+		fmt.Println("not caching")
 		proxy.ServeHTTP(w, r)
 	}
 }

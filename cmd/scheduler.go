@@ -35,7 +35,6 @@ func schedulerCLI() {
 	viper.BindPFlag("scheduler.storage.type", schedulerCmd.PersistentFlags().Lookup("storage-type"))
 	viper.BindPFlag("scheduler.algo", schedulerCmd.PersistentFlags().Lookup("algo"))
 	viper.BindPFlag("scheduler.maxProcs", schedulerCmd.PersistentFlags().Lookup("max-procs"))
-
 }
 
 func startScheduler(cmd *cobra.Command, args []string) {
