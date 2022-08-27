@@ -1,5 +1,7 @@
 package node
 
+import "fmt"
+
 type Node struct {
 	Name             string
 	IPv4             string
@@ -26,3 +28,15 @@ Proxy:
 	if fileserver is requested trigger addConnection()
 
 */
+
+func (no *Node) getLayerFromRequest() {
+	return
+}
+
+func (no *Node) schedule(layer string) error {
+	if layer == "" {
+		return fmt.Errorf("layer not specified")
+	}
+
+	return nil
+}

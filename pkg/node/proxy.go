@@ -19,15 +19,16 @@ type Proxy struct {
 }
 
 // ProxyRequestHandler handles the http request using proxy
-func (no *Proxy) ProxyRequestHandler(proxy *httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
+func (pr *Proxy) ProxyRequestHandler(proxy *httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if no.Regex.MatchString(r.RequestURI) {
+		if pr.Regex.MatchString(r.RequestURI) {
 
-			ups := fmt.Sprintf("%s%s", no.Upstream, r.RequestURI)
+			ups := fmt.Sprintf("%s%s", pr.Upstream, r.RequestURI)
 			resp, err := http.Head(ups)
 			if err != nil || resp.StatusCode != 200 {
 				goto upstream
 			}
+
 			// TODO: contact scheduler for download
 			// Call scheduler and ask to schedule()
 
@@ -45,10 +46,10 @@ func (no *Proxy) ProxyRequestHandler(proxy *httputil.ReverseProxy) func(http.Res
 	}
 }
 
-func (no *Proxy) Run() error {
+func (pr *Proxy) Run() error {
 
 	// init proxy
-	url, err := url.Parse(no.Upstream)
+	url, err := url.Parse(pr.Upstream)
 	if err != nil {
 		return err
 	}
@@ -56,9 +57,9 @@ func (no *Proxy) Run() error {
 	proxy := httputil.NewSingleHostReverseProxy(url)
 
 	// handle all requests to your server using the proxy
-	logrus.Infof("starting up server on %s", no.Address)
-	http.HandleFunc("/", no.ProxyRequestHandler(proxy))
-	log.Fatal(http.ListenAndServe(no.Address, nil))
+	logrus.Infof("starting up server on %s", pr.Address)
+	http.HandleFunc("/", pr.ProxyRequestHandler(proxy))
+	log.Fatal(http.ListenAndServe(pr.Address, nil))
 
 	return nil
 }

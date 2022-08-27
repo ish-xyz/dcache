@@ -78,6 +78,7 @@ func (sch *Scheduler) addNodeForLayer(layer, nodeName string) error {
 
 // Used by garbage collector when removing layers
 func (sch *Scheduler) removeNodeForLayer(layer, nodeName string, force bool) error {
+
 	_layer, err := sch.Store.ReadLayer(layer)
 	if err != nil {
 		return nil
