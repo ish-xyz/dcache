@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"regexp"
-
 	"github.com/ish-xyz/dreg/pkg/node"
 	"github.com/spf13/cobra"
 )
@@ -21,16 +19,19 @@ func nodeCLI() {
 
 func startNode(cmd *cobra.Command, args []string) {
 
-	re, _ := regexp.Compile(".*ciao.*")
-	proxy := &node.Proxy{
-		Node: &node.Node{
-			Name: "mynode",
-			IPv4: "127.0.0.1",
-		},
-		Upstream: "https://google.com",
-		Address:  ":6000",
-		Regex:    re,
-	}
+	_node := node.NewNode("mynode", "127.0.0.1", "http://127.0.0.1:8000", 3000)
+	_node.Register()
 
-	proxy.Run()
+	// re, _ := regexp.Compile(".*ciao.*")
+	// proxy := &node.Proxy{
+	// 	Node: _node,
+	// 	Upstream: &node.UpstreamConfig{
+	// 		Address:  "http://ish-ar.io/",
+	// 		Insecure: true,
+	// 	},
+	// 	Address: ":6000",
+	// 	Regex:   re,
+	// }
+
+	// proxy.Run()
 }

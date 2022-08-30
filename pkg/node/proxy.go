@@ -12,10 +12,15 @@ import (
 )
 
 type Proxy struct {
-	Node     *Node          `json:"node"`
-	Upstream string         `json:"upstream"`
-	Address  string         `json:"address"`
-	Regex    *regexp.Regexp `json:"regex"`
+	Node     *Node
+	Upstream *UpstreamConfig
+	Address  string
+	Regex    *regexp.Regexp
+}
+
+type UpstreamConfig struct {
+	Address  string
+	Insecure bool
 }
 
 // ProxyRequestHandler handles the http request using proxy
@@ -23,9 +28,16 @@ func (pr *Proxy) ProxyRequestHandler(proxy *httputil.ReverseProxy) func(http.Res
 	return func(w http.ResponseWriter, r *http.Request) {
 		if pr.Regex.MatchString(r.RequestURI) {
 
-			ups := fmt.Sprintf("%s%s", pr.Upstream, r.RequestURI)
-			resp, err := http.Head(ups)
-			if err != nil || resp.StatusCode != 200 {
+			upsReq := fmt.Sprintf("%s%s", pr.Upstream.Address, r.RequestURI)
+			resp, err := http.Head(upsReq)
+			if err != nil {
+				goto upstream
+			}
+			// head request should have no body, but it's best practice to close the body
+			defer resp.Body.Close()
+
+			is2xx := resp.StatusCode >= 200 && resp.StatusCode < 300
+			if !is2xx {
 				goto upstream
 			}
 
@@ -49,7 +61,7 @@ func (pr *Proxy) ProxyRequestHandler(proxy *httputil.ReverseProxy) func(http.Res
 func (pr *Proxy) Run() error {
 
 	// init proxy
-	url, err := url.Parse(pr.Upstream)
+	url, err := url.Parse(pr.Upstream.Address)
 	if err != nil {
 		return err
 	}

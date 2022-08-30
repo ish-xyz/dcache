@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 
@@ -40,12 +41,14 @@ func (s *Server) Run() {
 	http.Handle("/", r)
 	http.ListenAndServe(s.Address, r)
 
-	// TODO: add default response for other codes
+	// TODO: add default response for other status codes
 	// TODO: add redis storage
 	// TODO: add authentication
 }
 
 func _apiResponse(w http.ResponseWriter, r *http.Request, code int, data map[string]interface{}) {
+	logrus.Debugf("=> requested %s", r.RequestURI)
+	logrus.Debugf("=> response %v", data)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(data)
@@ -109,9 +112,10 @@ func (s *Server) _setNodeConnections(w http.ResponseWriter, r *http.Request) {
 func (s *Server) _registerNode(w http.ResponseWriter, r *http.Request) {
 
 	var _node *storage.NodeStat
-	err := json.NewDecoder(r.Body).Decode(&_node)
-
+	body, _ := ioutil.ReadAll(r.Body)
+	err := json.Unmarshal(body, _node)
 	if err != nil {
+		logrus.Debugln("=> error:", err)
 		_apiResponse(w, r, 400, map[string]interface{}{"status": "error", "message": "malformed payload"})
 		return
 	}

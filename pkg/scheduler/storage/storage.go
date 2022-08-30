@@ -3,7 +3,7 @@ package storage
 // Node information necessary for the scheduler
 type NodeStat struct {
 	Name        string `json:"name" validate:"required,alphanum"`
-	IPv4        string `json:"ip" validate:"required,ip"`
+	IPv4        string `json:"ipv4" validate:"required,ip"`
 	Connections int    `json:"connections" validate:"required"`
 	Port        int    `json:"port" validate:"required"`
 }
