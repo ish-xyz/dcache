@@ -50,6 +50,7 @@ func (s *Server) Run() {
 	// TODO: add default response for other status codes
 	// TODO: add redis storage
 	// TODO: add authentication
+	// TODO: implement request IDs
 }
 
 func logsMiddleware(h http.Handler) http.Handler {
@@ -58,7 +59,7 @@ func logsMiddleware(h http.Handler) http.Handler {
 		uri := r.RequestURI
 		method := r.Method
 
-		logrus.Debugf("request: %s %s", method, uri)
+		logrus.Infof("request: %s %s %s", r.RemoteAddr, method, uri)
 		h.ServeHTTP(w, r) // serve the original request
 
 	}
@@ -79,6 +80,7 @@ func (s *Server) _removeNodeConnection(w http.ResponseWriter, r *http.Request) {
 
 	err := s.Scheduler.removeNodeConnection(node)
 	if err != nil {
+		logrus.Warnln("_removeNodeConnection:", err.Error())
 		resp.Status = "error"
 		resp.Message = err.Error()
 		_apiResponse(w, r, 500, resp)
@@ -98,6 +100,7 @@ func (s *Server) _addNodeConnection(w http.ResponseWriter, r *http.Request) {
 
 	err := s.Scheduler.addNodeConnection(nodeName)
 	if err != nil {
+		logrus.Warnln("_addNodeConnection:", err.Error())
 		resp.Status = "error"
 		resp.Message = err.Error()
 		_apiResponse(w, r, 500, resp)
@@ -118,6 +121,7 @@ func (s *Server) _setNodeConnections(w http.ResponseWriter, r *http.Request) {
 	connsParam := vars["conns"]
 	conns, err := strconv.Atoi(connsParam)
 	if err != nil {
+		logrus.Warnln("_setNodeConnections:", err.Error())
 		resp.Status = "error"
 		resp.Message = "can't convert connections to integer"
 		_apiResponse(w, r, 400, resp)
@@ -126,6 +130,7 @@ func (s *Server) _setNodeConnections(w http.ResponseWriter, r *http.Request) {
 
 	err = s.Scheduler.setNodeConnections(node, conns)
 	if err != nil {
+		logrus.Warnln("_setNodeConnections:", err.Error())
 		resp.Status = "error"
 		resp.Message = err.Error()
 		_apiResponse(w, r, 500, resp)
@@ -145,6 +150,7 @@ func (s *Server) _registerNode(w http.ResponseWriter, r *http.Request) {
 
 	err := json.Unmarshal(body, &_node)
 	if err != nil {
+		logrus.Warnln("_registerNode:", err.Error())
 		resp.Status = "error"
 		resp.Message = err.Error()
 		_apiResponse(w, r, 400, resp)
@@ -153,6 +159,7 @@ func (s *Server) _registerNode(w http.ResponseWriter, r *http.Request) {
 
 	err = s.Scheduler.registerNode(&_node)
 	if err != nil {
+		logrus.Warnln("_registerNode:", err.Error())
 		resp.Status = "error"
 		resp.Message = err.Error()
 		logrus.Warnf("registration failed for node %s", string(body))
@@ -177,6 +184,7 @@ func (s *Server) _removeNodeForLayer(w http.ResponseWriter, r *http.Request) {
 
 	err := s.Scheduler.removeNodeForLayer(layer, node, false)
 	if err != nil {
+		logrus.Warnln("_removeNodeForLayer:", err.Error())
 		resp.Status = "error"
 		resp.Message = err.Error()
 		_apiResponse(w, r, 500, resp)
@@ -198,6 +206,7 @@ func (s *Server) _addNodeForLayer(w http.ResponseWriter, r *http.Request) {
 
 	err := s.Scheduler.addNodeForLayer(layer, node)
 	if err != nil {
+		logrus.Warnln("_addNodeForLayer:", err.Error())
 		resp.Status = "error"
 		resp.Message = err.Error()
 		_apiResponse(w, r, 500, resp)
@@ -218,6 +227,7 @@ func (s *Server) _schedule(w http.ResponseWriter, r *http.Request) {
 
 	node, err := s.Scheduler.schedule(layer)
 	if err != nil {
+		logrus.Warnln("_schedule:", err.Error())
 		resp.Status = "error"
 		resp.Message = err.Error()
 		_apiResponse(w, r, 500, resp)
