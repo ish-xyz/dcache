@@ -7,12 +7,14 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
 
 var (
-	registered bool
-	apiVersion = "v1"
+	registered   bool
+	apiVersion   = "v1"
+	requestIDKey = "X-Request-Id"
 )
 
 type Response struct {
@@ -26,6 +28,7 @@ type Node struct {
 	IPv4      string
 	Scheduler string
 	Port      int
+	Client    *http.Client
 }
 
 func NewNode(name, ipv4, scheduler string, port int) *Node {
@@ -34,7 +37,23 @@ func NewNode(name, ipv4, scheduler string, port int) *Node {
 		IPv4:      ipv4,
 		Scheduler: scheduler,
 		Port:      port,
+		Client:    &http.Client{},
 	}
+}
+
+func generateNewID() string {
+	return uuid.New().String()
+}
+
+func (no *Node) Request(method string, resource string, headers map[string]string, body []byte) (*http.Response, error) {
+
+	req, _ := http.NewRequest(method, resource, bytes.NewBuffer(body))
+
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
+	return no.Client.Do(req)
 }
 
 func (no *Node) Register() error {
@@ -52,11 +71,17 @@ func (no *Node) Register() error {
 		return err
 	}
 
-	logrus.Infoln("requesting resource: ", resource)
-	logrus.Infof("sending data %s", string(payload))
+	logrus.Infoln("registering node: ", resource)
+	logrus.Debugln("sending data %s", string(payload))
 
-	resp, err := http.Post(resource, "application/json", bytes.NewBuffer(payload))
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		requestIDKey:   generateNewID(),
+	}
+
+	resp, err := no.Request("POST", resource, headers, payload)
 	if err != nil {
+		logrus.Warnf("error requesting resource: %s", resource)
 		return err
 	}
 	defer resp.Body.Close()
@@ -73,7 +98,12 @@ func (no *Node) Register() error {
 	}
 
 	registered = true
-	logrus.Debugln("node registration completed.")
+	logrus.Infoln("node registration completed.")
+	return nil
+}
+
+func (no *Node) notifyLayer(layer string) error {
+
 	return nil
 }
 

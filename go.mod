@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/go-playground/validator v9.31.0+incompatible
+	github.com/google/uuid v1.1.2
 	github.com/gorilla/mux v1.8.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.5.0

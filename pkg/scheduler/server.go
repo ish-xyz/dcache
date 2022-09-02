@@ -11,6 +11,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var (
+	requestIDKey = "X-Request-Id"
+)
+
 type Server struct {
 	Address   string
 	Scheduler *Scheduler
@@ -58,8 +62,7 @@ func logsMiddleware(h http.Handler) http.Handler {
 
 		uri := r.RequestURI
 		method := r.Method
-
-		logrus.Infof("request: %s %s %s", r.RemoteAddr, method, uri)
+		logrus.Infof("request: %v - %s %s %s", r.Header[requestIDKey], r.RemoteAddr, method, uri)
 		h.ServeHTTP(w, r) // serve the original request
 
 	}
