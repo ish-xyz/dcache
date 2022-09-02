@@ -16,6 +16,7 @@ var (
 	apiVersion = "v1"
 )
 
+// needed cause context doesn't accept primitive types as key
 type ContextKey string
 
 type Response struct {

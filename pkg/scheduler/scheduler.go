@@ -134,7 +134,7 @@ func (sch *Scheduler) schedule(layer string) (*storage.NodeStat, error) {
 		}
 	}
 
-	// Cleanup candidate, this it's a bit ugly.. needs adjustments
+	// TODO: Cleanup candidate, this it's a bit ugly.. needs adjustments
 	if candidate.Name == "DUMMY_CANDIDATE" {
 		candidate = &storage.NodeStat{}
 	}

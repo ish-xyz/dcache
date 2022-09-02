@@ -15,6 +15,7 @@ type Server struct {
 	Node     *Node
 	Upstream *UpstreamConfig
 	Address  string
+	DataDir  string
 	Regex    *regexp.Regexp
 }
 
@@ -67,11 +68,15 @@ func (srv *Server) Run() error {
 	}
 
 	proxy := httputil.NewSingleHostReverseProxy(url)
+	fmt.Println(srv.DataDir)
+	fs := http.FileServer(http.Dir(srv.DataDir))
 
 	// handle all requests to your server using the proxy
 	logrus.Infof("starting up server on %s", srv.Address)
-	http.HandleFunc("/proxy/", srv.ProxyRequestHandler(proxy))
-	log.Fatal(http.ListenAndServe(srv.Address, nil))
 
+	http.Handle("/data/", http.StripPrefix("/data/", fs))
+	http.HandleFunc("/proxy", srv.ProxyRequestHandler(proxy))
+
+	log.Fatal(http.ListenAndServe(srv.Address, nil))
 	return nil
 }
