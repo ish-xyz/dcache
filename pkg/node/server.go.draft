@@ -1,0 +1,6 @@
+
+Unify proxy & fileserver into 1 single server with the following path:
+
+/data/
+/proxy/
+/api/v1/

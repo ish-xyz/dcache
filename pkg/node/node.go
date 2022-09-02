@@ -260,8 +260,47 @@ func (no *Node) NotifyLayer(layer, ops string) error {
 	return nil
 }
 
-func (no *Node) FindSource(layer string) error {
-	return nil
+// find node to download from
+func (no *Node) FindSource(layer string) (map[string]string, error) {
+
+	var resp Response
+
+	resource := fmt.Sprintf("%s/%s/%s/%s", no.Scheduler, apiVersion, "schedule", layer)
+
+	logrus.Infof("scheduling dowload for layer %s", layer)
+
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		requestIDKey:   generateNewID(),
+	}
+
+	rawResp, err := no.Request("GET", resource, headers, nil)
+	if err != nil {
+		logrus.Warnf("error requesting resource: %s", resource)
+		return nil, err
+	}
+	defer rawResp.Body.Close()
+
+	body, _ := ioutil.ReadAll(rawResp.Body)
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		logrus.Warnln("error decoding payload:", err)
+		return nil, err
+	}
+
+	if resp.Status != "success" {
+		logrus.Warnf("error received from scheduler: %s", resp.Message)
+		return nil, err
+	}
+
+	if resp.Data["node"] == "" {
+		return nil, fmt.Errorf("no node found for layer %s", layer)
+	}
+
+	nodeMap := resp.Data["node"].(map[string]string)
+
+	logrus.Infof("succcessfully found node %s", nodeMap["name"])
+	return nodeMap, nil
 }
 
 /*
@@ -270,12 +309,6 @@ Proxy:
 - proxy pass to the upstream, should filter our every request that meets a certain regex
 - node client/core should have:
 	methods to
-		[DONE] register()
-		[DONE] notifyLayer()
-		[DONE] addConnection()
-		[DONE] removeConnection()
-		[DONE] getNodeStat()
-		FindSource()
 		* deregister()
 		* downloadFromNode() // check that node is up and if not fallback to the upstream
 		* garbageCollector() // spin up in separate go-routine

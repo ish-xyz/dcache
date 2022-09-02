@@ -11,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type Proxy struct {
+type Server struct {
 	Node     *Node
 	Upstream *UpstreamConfig
 	Address  string
@@ -24,11 +24,11 @@ type UpstreamConfig struct {
 }
 
 // ProxyRequestHandler handles the http request using proxy
-func (pr *Proxy) ProxyRequestHandler(proxy *httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
+func (srv *Server) ProxyRequestHandler(proxy *httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if pr.Regex.MatchString(r.RequestURI) {
+		if srv.Regex.MatchString(r.RequestURI) {
 
-			upsReq := fmt.Sprintf("%s%s", pr.Upstream.Address, r.RequestURI)
+			upsReq := fmt.Sprintf("%s%s", srv.Upstream.Address, r.RequestURI)
 			resp, err := http.Head(upsReq)
 			if err != nil {
 				goto upstream
@@ -58,10 +58,10 @@ func (pr *Proxy) ProxyRequestHandler(proxy *httputil.ReverseProxy) func(http.Res
 	}
 }
 
-func (pr *Proxy) Run() error {
+func (srv *Server) Run() error {
 
 	// init proxy
-	url, err := url.Parse(pr.Upstream.Address)
+	url, err := url.Parse(srv.Upstream.Address)
 	if err != nil {
 		return err
 	}
@@ -69,9 +69,9 @@ func (pr *Proxy) Run() error {
 	proxy := httputil.NewSingleHostReverseProxy(url)
 
 	// handle all requests to your server using the proxy
-	logrus.Infof("starting up server on %s", pr.Address)
-	http.HandleFunc("/proxy", pr.ProxyRequestHandler(proxy))
-	log.Fatal(http.ListenAndServe(pr.Address, nil))
+	logrus.Infof("starting up server on %s", srv.Address)
+	http.HandleFunc("/proxy/", srv.ProxyRequestHandler(proxy))
+	log.Fatal(http.ListenAndServe(srv.Address, nil))
 
 	return nil
 }
