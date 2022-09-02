@@ -252,3 +252,8 @@ func (s *Server) _schedule(w http.ResponseWriter, r *http.Request) {
 	}
 	_apiResponse(w, r, code, resp)
 }
+
+func (s *Server) _getNode(w http.ResponseWriter, r *http.Request) {
+	//var resp Response
+	return
+}

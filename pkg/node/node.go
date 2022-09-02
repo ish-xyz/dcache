@@ -58,7 +58,7 @@ func (no *Node) Request(method string, resource string, headers map[string]strin
 
 func (no *Node) Register() error {
 
-	var _data Response
+	var resp Response
 
 	resource := fmt.Sprintf("%s/%s/%s", no.Scheduler, apiVersion, "registerNode")
 	payload, err := json.Marshal(map[string]interface{}{
@@ -79,22 +79,22 @@ func (no *Node) Register() error {
 		requestIDKey:   generateNewID(),
 	}
 
-	resp, err := no.Request("POST", resource, headers, payload)
+	rawResp, err := no.Request("POST", resource, headers, payload)
 	if err != nil {
 		logrus.Warnf("error requesting resource: %s", resource)
 		return err
 	}
-	defer resp.Body.Close()
+	defer rawResp.Body.Close()
 
-	body, _ := ioutil.ReadAll(resp.Body)
-	err = json.Unmarshal(body, &_data)
+	body, _ := ioutil.ReadAll(rawResp.Body)
+	err = json.Unmarshal(body, &resp)
 	if err != nil {
 		return err
 	}
 
-	if _data.Status != "success" {
-		logrus.Warnf("error received from scheduler while registering: %s", _data.Message)
-		return fmt.Errorf(_data.Message)
+	if resp.Status != "success" {
+		logrus.Warnf("error received from scheduler while registering: %s", resp.Message)
+		return fmt.Errorf(resp.Message)
 	}
 
 	registered = true
@@ -102,8 +102,38 @@ func (no *Node) Register() error {
 	return nil
 }
 
-func (no *Node) notifyLayer(layer string) error {
+func (no *Node) AddNodeConnection() error {
 
+	var resp Response
+
+	resource := fmt.Sprintf("%s/%s/%s", no.Scheduler, apiVersion, "addNodeConnection")
+
+	logrus.Infoln("adding connection to node")
+
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		requestIDKey:   generateNewID(),
+	}
+
+	rawResp, err := no.Request("PUT", resource, headers, nil)
+	if err != nil {
+		logrus.Warnf("error requesting resource: %s", resource)
+		return err
+	}
+	defer rawResp.Body.Close()
+
+	body, _ := ioutil.ReadAll(rawResp.Body)
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		return err
+	}
+
+	if resp.Status != "success" {
+		logrus.Warnf("error received from scheduler: %s", resp.Message)
+		return fmt.Errorf(resp.Message)
+	}
+
+	logrus.Infoln("connection added successfully")
 	return nil
 }
 
