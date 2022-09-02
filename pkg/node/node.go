@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	registered   bool
+	Registered   bool
 	apiVersion   = "v1"
 	requestIDKey = "X-Request-Id"
 )
@@ -97,18 +97,19 @@ func (no *Node) Register() error {
 		return fmt.Errorf(resp.Message)
 	}
 
-	registered = true
+	Registered = true
 	logrus.Infoln("node registration completed.")
 	return nil
 }
 
+// add 1 node connection on the scheduler
 func (no *Node) AddNodeConnection() error {
 
 	var resp Response
 
 	resource := fmt.Sprintf("%s/%s/%s/%s", no.Scheduler, apiVersion, "addNodeConnection", no.Name)
 
-	logrus.Infoln("adding connection to node")
+	logrus.Infoln("adding 1 connection")
 
 	headers := map[string]string{
 		"Content-Type": "application/json",
@@ -138,7 +139,45 @@ func (no *Node) AddNodeConnection() error {
 	return nil
 }
 
-func (no *Node) Get() map[string]interface{} {
+// remove 1 node connection on the scheduler
+func (no *Node) RemoveNodeConnection() error {
+
+	var resp Response
+
+	resource := fmt.Sprintf("%s/%s/%s/%s", no.Scheduler, apiVersion, "removeNodeConnection", no.Name)
+
+	logrus.Infoln("removing 1 connection")
+
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		requestIDKey:   generateNewID(),
+	}
+
+	rawResp, err := no.Request("PUT", resource, headers, nil)
+	if err != nil {
+		logrus.Warnf("error requesting resource: %s", resource)
+		return err
+	}
+	defer rawResp.Body.Close()
+
+	body, _ := ioutil.ReadAll(rawResp.Body)
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		logrus.Warnln("error decoding payload:", err)
+		return err
+	}
+
+	if resp.Status != "success" {
+		logrus.Warnf("error received from scheduler: %s", resp.Message)
+		return fmt.Errorf(resp.Message)
+	}
+
+	logrus.Infoln("connection removed successfully")
+	return nil
+}
+
+// returns a map[string]interface{} with the node stat from the scheduler storage
+func (no *Node) GetStat() (map[string]interface{}, error) {
 
 	var resp Response
 
@@ -154,7 +193,7 @@ func (no *Node) Get() map[string]interface{} {
 	rawResp, err := no.Request("GET", resource, headers, nil)
 	if err != nil {
 		logrus.Warnf("error requesting resource: %s", resource)
-		return nil
+		return nil, err
 	}
 	defer rawResp.Body.Close()
 
@@ -162,16 +201,63 @@ func (no *Node) Get() map[string]interface{} {
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
 		logrus.Warnln("error decoding payload:", err)
-		return nil
+		return nil, err
 	}
 
 	if resp.Status != "success" {
 		logrus.Warnf("error received from scheduler: %s", resp.Message)
-		return nil
+		return nil, err
 	}
 
 	logrus.Infoln("connection added successfully")
-	return resp.Data
+	return resp.Data["node"].(map[string]interface{}), nil
+}
+
+// Ask the scheduler to find a node to download the layer
+func (no *Node) NotifyLayer(layer, ops string) error {
+
+	var resp Response
+	var resource string
+	var method string
+
+	if ops == "add" {
+		resource = fmt.Sprintf("%s/%s/%s/%s", no.Scheduler, apiVersion, "addNodeConnection", no.Name)
+		method = "PUT"
+	} else if ops == "remove" {
+		resource = fmt.Sprintf("%s/%s/%s/%s", no.Scheduler, apiVersion, "removeNodeConnection", no.Name)
+		method = "DELETE"
+	} else {
+		return fmt.Errorf("notifyLayer: unknown operation")
+	}
+
+	logrus.Infof("notifying removal of layer %s", layer)
+
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		requestIDKey:   generateNewID(),
+	}
+
+	rawResp, err := no.Request(method, resource, headers, nil)
+	if err != nil {
+		logrus.Warnf("error requesting resource: %s", resource)
+		return err
+	}
+	defer rawResp.Body.Close()
+
+	body, _ := ioutil.ReadAll(rawResp.Body)
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		logrus.Warnln("error decoding payload:", err)
+		return err
+	}
+
+	if resp.Status != "success" {
+		logrus.Warnf("error received from scheduler: %s", resp.Message)
+		return err
+	}
+
+	logrus.Infof("succcess: %s connection for layer %s", ops, layer)
+	return nil
 }
 
 /*
@@ -180,16 +266,18 @@ Proxy:
 - proxy pass to the upstream, should filter our every request that meets a certain regex
 - node client/core should have:
 	methods to
-		register()
-		notifyLayer()
-		deregister()
-		removeLayer()
-		addConnection()
-		removeConnection()
-		getPeer()
-		download()
-		garbageCollector() // spin up in separate go-routine
+		[DONE] register()
+		[DONE] notifyLayer()
+		[DONE] addConnection()
+		[DONE] removeConnection()
+		[DONE] getNodeStat()
+		FindSource()
+		* deregister()
+		* downloadFromNode() // check that node is up and if not fallback to the upstream
+		* garbageCollector() // spin up in separate go-routine
 - fileserver
-	if fileserver is requested trigger addConnection()
+	trigger on incoming connections -> addConnection() & removeConnection()
+	synchronizer -> routine that every X seconds synchronises the amount of connections \
+		on the fileserver and the one advertised to the scheduler
 
 */

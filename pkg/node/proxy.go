@@ -70,7 +70,7 @@ func (pr *Proxy) Run() error {
 
 	// handle all requests to your server using the proxy
 	logrus.Infof("starting up server on %s", pr.Address)
-	http.HandleFunc("/", pr.ProxyRequestHandler(proxy))
+	http.HandleFunc("/proxy", pr.ProxyRequestHandler(proxy))
 	log.Fatal(http.ListenAndServe(pr.Address, nil))
 
 	return nil

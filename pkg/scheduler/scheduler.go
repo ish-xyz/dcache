@@ -93,6 +93,17 @@ func (sch *Scheduler) removeNodeForLayer(layer, nodeName string, force bool) err
 	return nil
 }
 
+// Get nodeStat from storage
+func (sch *Scheduler) getNode(nodeName string) (*storage.NodeStat, error) {
+
+	node, err := sch.Store.ReadNode(nodeName)
+	if err != nil {
+		return nil, err
+	}
+
+	return node, nil
+}
+
 // Look for all the nodes that have a specific layer,
 // then look for the node that has the least connection
 // if node not found, return nil
@@ -129,15 +140,4 @@ func (sch *Scheduler) schedule(layer string) (*storage.NodeStat, error) {
 	}
 
 	return candidate, nil
-}
-
-// Get nodeStat from storage
-func (sch *Scheduler) getNode(nodeName string) (*storage.NodeStat, error) {
-
-	node, err := sch.Store.ReadNode(nodeName)
-	if err != nil {
-		return nil, err
-	}
-
-	return node, nil
 }
