@@ -2,20 +2,21 @@ package node
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
 
 var (
-	Registered   bool
-	apiVersion   = "v1"
-	requestIDKey = "X-Request-Id"
+	Registered bool
+	apiVersion = "v1"
 )
+
+type ContextKey string
 
 type Response struct {
 	Status  string                 `json:"status"`
@@ -24,25 +25,23 @@ type Response struct {
 }
 
 type Node struct {
-	Name      string
-	IPv4      string
-	Scheduler string
-	Port      int
-	Client    *http.Client
+	RequestIDKey ContextKey
+	Name         string
+	IPv4         string
+	Scheduler    string
+	Port         int
+	Client       *http.Client
 }
 
-func NewNode(name, ipv4, scheduler string, port int) *Node {
+func NewNode(key ContextKey, name, ipv4, scheduler string, port int) *Node {
 	return &Node{
-		Name:      name,
-		IPv4:      ipv4,
-		Scheduler: scheduler,
-		Port:      port,
-		Client:    &http.Client{},
+		RequestIDKey: key,
+		Name:         name,
+		IPv4:         ipv4,
+		Scheduler:    scheduler,
+		Port:         port,
+		Client:       &http.Client{},
 	}
-}
-
-func generateNewID() string {
-	return uuid.New().String()
 }
 
 func (no *Node) Request(method string, resource string, headers map[string]string, body []byte) (*http.Response, error) {
@@ -56,7 +55,7 @@ func (no *Node) Request(method string, resource string, headers map[string]strin
 	return no.Client.Do(req)
 }
 
-func (no *Node) Register() error {
+func (no *Node) Register(ctx context.Context) error {
 
 	var resp Response
 
@@ -74,9 +73,11 @@ func (no *Node) Register() error {
 	logrus.Infoln("registering node: ", resource)
 	logrus.Debugln("sending data %s", string(payload))
 
+	fmt.Println(ctx.Value(no.RequestIDKey).(string))
+
 	headers := map[string]string{
-		"Content-Type": "application/json",
-		requestIDKey:   generateNewID(),
+		"Content-Type":          "application/json",
+		string(no.RequestIDKey): ctx.Value(no.RequestIDKey).(string),
 	}
 
 	rawResp, err := no.Request("POST", resource, headers, payload)
@@ -103,7 +104,7 @@ func (no *Node) Register() error {
 }
 
 // add 1 node connection on the scheduler
-func (no *Node) AddConnection() error {
+func (no *Node) AddConnection(ctx context.Context) error {
 
 	var resp Response
 
@@ -112,8 +113,8 @@ func (no *Node) AddConnection() error {
 	logrus.Infoln("adding 1 connection")
 
 	headers := map[string]string{
-		"Content-Type": "application/json",
-		requestIDKey:   generateNewID(),
+		"Content-Type":          "application/json",
+		string(no.RequestIDKey): ctx.Value(no.RequestIDKey).(string),
 	}
 
 	rawResp, err := no.Request("PUT", resource, headers, nil)
@@ -140,7 +141,7 @@ func (no *Node) AddConnection() error {
 }
 
 // remove 1 node connection on the scheduler
-func (no *Node) RemoveConnection() error {
+func (no *Node) RemoveConnection(ctx context.Context) error {
 
 	var resp Response
 
@@ -149,8 +150,8 @@ func (no *Node) RemoveConnection() error {
 	logrus.Infoln("removing 1 connection")
 
 	headers := map[string]string{
-		"Content-Type": "application/json",
-		requestIDKey:   generateNewID(),
+		"Content-Type":          "application/json",
+		string(no.RequestIDKey): ctx.Value(no.RequestIDKey).(string),
 	}
 
 	rawResp, err := no.Request("PUT", resource, headers, nil)
@@ -177,7 +178,7 @@ func (no *Node) RemoveConnection() error {
 }
 
 // returns a map[string]interface{} with the node stat from the scheduler storage
-func (no *Node) GetStat() (map[string]interface{}, error) {
+func (no *Node) GetStat(ctx context.Context) (map[string]interface{}, error) {
 
 	var resp Response
 
@@ -186,8 +187,8 @@ func (no *Node) GetStat() (map[string]interface{}, error) {
 	logrus.Infoln("getting nodeStat information")
 
 	headers := map[string]string{
-		"Content-Type": "application/json",
-		requestIDKey:   generateNewID(),
+		"Content-Type":          "application/json",
+		string(no.RequestIDKey): ctx.Value(no.RequestIDKey).(string),
 	}
 
 	rawResp, err := no.Request("GET", resource, headers, nil)
@@ -214,7 +215,7 @@ func (no *Node) GetStat() (map[string]interface{}, error) {
 }
 
 // Ask the scheduler to find a node to download the layer
-func (no *Node) NotifyLayer(layer, ops string) error {
+func (no *Node) NotifyLayer(ctx context.Context, layer, ops string) error {
 
 	var resp Response
 	var resource string
@@ -233,8 +234,8 @@ func (no *Node) NotifyLayer(layer, ops string) error {
 	logrus.Infof("notifying removal of layer %s", layer)
 
 	headers := map[string]string{
-		"Content-Type": "application/json",
-		requestIDKey:   generateNewID(),
+		"Content-Type":          "application/json",
+		string(no.RequestIDKey): ctx.Value(no.RequestIDKey).(string),
 	}
 
 	rawResp, err := no.Request(method, resource, headers, nil)
@@ -261,7 +262,7 @@ func (no *Node) NotifyLayer(layer, ops string) error {
 }
 
 // find node to download from
-func (no *Node) FindSource(layer string) (map[string]string, error) {
+func (no *Node) FindSource(ctx context.Context, layer string) (map[string]string, error) {
 
 	var resp Response
 
@@ -270,8 +271,8 @@ func (no *Node) FindSource(layer string) (map[string]string, error) {
 	logrus.Infof("scheduling dowload for layer %s", layer)
 
 	headers := map[string]string{
-		"Content-Type": "application/json",
-		requestIDKey:   generateNewID(),
+		"Content-Type":          "application/json",
+		string(no.RequestIDKey): ctx.Value(no.RequestIDKey).(string),
 	}
 
 	rawResp, err := no.Request("GET", resource, headers, nil)

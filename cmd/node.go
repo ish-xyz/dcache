@@ -1,6 +1,10 @@
 package cmd
 
 import (
+	"context"
+	"fmt"
+
+	"github.com/google/uuid"
 	"github.com/ish-xyz/dreg/pkg/node"
 	"github.com/spf13/cobra"
 )
@@ -13,14 +17,26 @@ var (
 	}
 )
 
+var (
+	parentCtx = context.Background()
+)
+
 func nodeCLI() {
 	return
 }
 
+func generateNewID() string {
+	return uuid.New().String()
+}
+
 func startNode(cmd *cobra.Command, args []string) {
 
-	_node := node.NewNode("mynode", "127.0.0.1", "http://127.0.0.1:8000", 3000)
-	_node.Register()
+	var requestIDKey node.ContextKey = "X-Request-Id"
+
+	_node := node.NewNode(requestIDKey, "mynode", "127.0.0.1", "http://127.0.0.1:8000", 3000)
+	ctx := context.WithValue(parentCtx, requestIDKey, generateNewID())
+	_node.Register(ctx)
+	fmt.Println(_node.GetStat(ctx))
 
 	// re, _ := regexp.Compile(".*ciao.*")
 	// proxy := &node.Proxy{
