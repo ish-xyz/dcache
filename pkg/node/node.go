@@ -16,8 +16,9 @@ var (
 )
 
 type Response struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
+	Status  string                 `json:"status"`
+	Message string                 `json:"message"`
+	Data    map[string]interface{} `json:"data"`
 }
 
 type Node struct {
@@ -38,7 +39,7 @@ func NewNode(name, ipv4, scheduler string, port int) *Node {
 
 func (no *Node) Register() error {
 
-	var _data *Response
+	var _data Response
 
 	resource := fmt.Sprintf("%s/%s/%s", no.Scheduler, apiVersion, "registerNode")
 	payload, err := json.Marshal(map[string]interface{}{
@@ -61,16 +62,18 @@ func (no *Node) Register() error {
 	defer resp.Body.Close()
 
 	body, _ := ioutil.ReadAll(resp.Body)
-	err = json.Unmarshal(body, _data)
+	err = json.Unmarshal(body, &_data)
 	if err != nil {
 		return err
 	}
 
 	if _data.Status != "success" {
+		logrus.Warnf("error received from scheduler while registering: %s", _data.Message)
 		return fmt.Errorf(_data.Message)
 	}
 
 	registered = true
+	logrus.Debugln("node registration completed.")
 	return nil
 }
 

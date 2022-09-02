@@ -4,7 +4,7 @@ package storage
 type NodeStat struct {
 	Name        string `json:"name" validate:"required,alphanum"`
 	IPv4        string `json:"ipv4" validate:"required,ip"`
-	Connections int    `json:"connections" validate:"required"`
+	Connections int    `json:"connections"`
 	Port        int    `json:"port" validate:"required"`
 }
 

@@ -17,6 +17,12 @@ type Server struct {
 	TLSConfig string
 }
 
+type Response struct {
+	Status  string                 `json:"status"`
+	Message string                 `json:"message,omitempty"`
+	Data    map[string]interface{} `json:"data,omitempty"`
+}
+
 func NewServer(addr string, sch *Scheduler) *Server {
 	return &Server{
 		Address:   addr,
@@ -38,177 +44,198 @@ func (s *Server) Run() {
 	r.HandleFunc("/v1/schedule/{layer}", s._schedule).Methods("GET")
 
 	logrus.Infof("starting up server on %s", s.Address)
-	http.Handle("/", r)
-	http.ListenAndServe(s.Address, r)
+	http.Handle("/", logsMiddleware(r))
+	http.ListenAndServe(s.Address, logsMiddleware(r))
 
 	// TODO: add default response for other status codes
 	// TODO: add redis storage
 	// TODO: add authentication
 }
 
-func _apiResponse(w http.ResponseWriter, r *http.Request, code int, data map[string]interface{}) {
-	logrus.Debugf("=> requested %s", r.RequestURI)
-	logrus.Debugf("=> response %v", data)
+func logsMiddleware(h http.Handler) http.Handler {
+	logFn := func(w http.ResponseWriter, r *http.Request) {
+
+		uri := r.RequestURI
+		method := r.Method
+
+		logrus.Debugf("request: %s %s", method, uri)
+		h.ServeHTTP(w, r) // serve the original request
+
+	}
+	return http.HandlerFunc(logFn)
+}
+
+func _apiResponse(w http.ResponseWriter, r *http.Request, code int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(data)
 }
 
 func (s *Server) _removeNodeConnection(w http.ResponseWriter, r *http.Request) {
+
+	var resp Response
 	vars := mux.Vars(r)
-	node, ok := vars["nodeName"]
-	if !ok {
-		_apiResponse(w, r, 400, map[string]interface{}{"status": "error", "message": "missing node name"})
-		return
-	}
+	node := vars["nodeName"]
+
 	err := s.Scheduler.removeNodeConnection(node)
 	if err != nil {
-		_apiResponse(w, r, 500, map[string]interface{}{"status": "error", "message": err.Error()})
+		resp.Status = "error"
+		resp.Message = err.Error()
+		_apiResponse(w, r, 500, resp)
 		return
 	}
-	_apiResponse(w, r, 200, map[string]interface{}{"status": "success", "message": "1 connection removed from node"})
+
+	resp.Status = "success"
+	resp.Message = "1 connection removed from node"
+	_apiResponse(w, r, 200, resp)
 }
 
 func (s *Server) _addNodeConnection(w http.ResponseWriter, r *http.Request) {
+
+	var resp Response
 	vars := mux.Vars(r)
-	nodeName, ok := vars["nodeName"]
-	if !ok {
-		_apiResponse(w, r, 400, map[string]interface{}{"status": "error", "message": "missing node name"})
-		return
-	}
+	nodeName := vars["nodeName"]
+
 	err := s.Scheduler.addNodeConnection(nodeName)
 	if err != nil {
-		_apiResponse(w, r, 500, map[string]interface{}{"status": "error", "message": err.Error()})
+		resp.Status = "error"
+		resp.Message = err.Error()
+		_apiResponse(w, r, 500, resp)
 		return
 	}
-	_apiResponse(w, r, 200, map[string]interface{}{"status": "success", "message": "1 connection added on node"})
+
+	resp.Status = "success"
+	resp.Message = "1 connection added on node"
+	_apiResponse(w, r, 200, resp)
 }
 
 func (s *Server) _setNodeConnections(w http.ResponseWriter, r *http.Request) {
+
+	var resp Response
 	vars := mux.Vars(r)
-	node, ok := vars["nodeName"]
-	if !ok {
-		_apiResponse(w, r, 400, map[string]interface{}{"status": "error", "message": "missing node name"})
-		return
-	}
-	conns, ok := vars["conns"]
-	_conns, err := strconv.Atoi(conns)
-	if !ok || err != nil {
-		_apiResponse(w, r, 400, map[string]interface{}{"status": "error", "message": "missing connections variable"})
+	node := vars["nodeName"]
+
+	connsParam := vars["conns"]
+	conns, err := strconv.Atoi(connsParam)
+	if err != nil {
+		resp.Status = "error"
+		resp.Message = "can't convert connections to integer"
+		_apiResponse(w, r, 400, resp)
 		return
 	}
 
-	err = s.Scheduler.setNodeConnections(node, _conns)
+	err = s.Scheduler.setNodeConnections(node, conns)
 	if err != nil {
-		_apiResponse(w, r, 500, map[string]interface{}{"status": "error", "message": err.Error()})
+		resp.Status = "error"
+		resp.Message = err.Error()
+		_apiResponse(w, r, 500, resp)
 		return
 	}
-	_apiResponse(w, r, 200, map[string]interface{}{
-		"status":  "success",
-		"message": "succesfully set number of connections for node",
-	})
+
+	resp.Status = "success"
+	resp.Message = "succesfully set number of connections for node"
+	_apiResponse(w, r, 200, resp)
 }
 
 func (s *Server) _registerNode(w http.ResponseWriter, r *http.Request) {
 
-	var _node *storage.NodeStat
+	var resp Response
+	var _node storage.NodeStat
 	body, _ := ioutil.ReadAll(r.Body)
-	err := json.Unmarshal(body, _node)
+
+	err := json.Unmarshal(body, &_node)
 	if err != nil {
-		logrus.Debugln("=> error:", err)
-		_apiResponse(w, r, 400, map[string]interface{}{"status": "error", "message": "malformed payload"})
+		resp.Status = "error"
+		resp.Message = err.Error()
+		_apiResponse(w, r, 400, resp)
 		return
 	}
 
-	err = s.Scheduler.registerNode(_node)
+	err = s.Scheduler.registerNode(&_node)
 	if err != nil {
-		_apiResponse(w, r, 500, map[string]interface{}{"status": "error", "message": err.Error()})
+		resp.Status = "error"
+		resp.Message = err.Error()
+		logrus.Warnf("registration failed for node %s", string(body))
+		_apiResponse(w, r, 500, resp)
 		return
 	}
 
-	_apiResponse(w, r, 200, map[string]interface{}{
-		"status":  "success",
-		"message": "node registered",
-	})
+	logrus.Debugf("node registered successfully %+v", _node)
+
+	resp.Status = "success"
+	resp.Message = "node registered"
+
+	_apiResponse(w, r, 200, resp)
 }
 
 func (s *Server) _removeNodeForLayer(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	node, ok := vars["nodeName"]
-	if !ok {
-		_apiResponse(w, r, 400, map[string]interface{}{"status": "error", "message": "missing node name"})
-		return
-	}
 
-	layer, ok := vars["layer"]
-	if !ok {
-		_apiResponse(w, r, 400, map[string]interface{}{"status": "error", "message": "missing layer sha"})
-		return
-	}
+	var resp Response
+	vars := mux.Vars(r)
+	node := vars["nodeName"]
+	layer := vars["layer"]
 
 	err := s.Scheduler.removeNodeForLayer(layer, node, false)
 	if err != nil {
-		_apiResponse(w, r, 500, map[string]interface{}{"status": "error", "message": err.Error()})
+		resp.Status = "error"
+		resp.Message = err.Error()
+		_apiResponse(w, r, 500, resp)
 		return
 	}
 
-	_apiResponse(w, r, 200, map[string]interface{}{
-		"status":  "success",
-		"message": "layer/node score reduced by 1",
-	})
+	resp.Status = "success"
+	resp.Message = "layer/node score reduced by 1"
+
+	_apiResponse(w, r, 200, resp)
 }
 
 func (s *Server) _addNodeForLayer(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	node, ok := vars["nodeName"]
-	if !ok {
-		_apiResponse(w, r, 400, map[string]interface{}{"status": "error", "message": "missing node name"})
-		return
-	}
 
-	layer, ok := vars["layer"]
-	if !ok {
-		_apiResponse(w, r, 400, map[string]interface{}{"status": "error", "message": "missing layer sha"})
-		return
-	}
+	var resp Response
+	vars := mux.Vars(r)
+	node := vars["nodeName"]
+	layer := vars["layer"]
 
 	err := s.Scheduler.addNodeForLayer(layer, node)
 	if err != nil {
-		_apiResponse(w, r, 500, map[string]interface{}{"status": "error", "message": err.Error()})
+		resp.Status = "error"
+		resp.Message = err.Error()
+		_apiResponse(w, r, 500, resp)
 		return
 	}
 
-	_apiResponse(w, r, 200, map[string]interface{}{
-		"status":  "success",
-		"message": "layer/node score increased by 1",
-	})
+	resp.Status = "success"
+	resp.Message = "layer/node score increased by 1"
+
+	_apiResponse(w, r, 200, resp)
 }
 
 func (s *Server) _schedule(w http.ResponseWriter, r *http.Request) {
+
+	var resp Response
 	vars := mux.Vars(r)
-	layer, ok := vars["layer"]
-	if !ok {
-		_apiResponse(w, r, 400, map[string]interface{}{"status": "error", "message": "missing layer sha"})
-		return
-	}
+	layer := vars["layer"]
 
 	node, err := s.Scheduler.schedule(layer)
 	if err != nil {
-		_apiResponse(w, r, 500, map[string]interface{}{"status": "error", "message": err.Error()})
+		resp.Status = "error"
+		resp.Message = err.Error()
+		_apiResponse(w, r, 500, resp)
 		return
 	}
 
 	code := 200
-	data := map[string]interface{}{
-		"status": "success",
-		"node":   node,
+	resp.Status = "success"
+	resp.Data = map[string]interface{}{
+		"node": node,
 	}
+
 	if node.Name == "" {
 		code = 404
-		data = map[string]interface{}{
-			"status": "success",
-			"node":   "",
+		resp.Status = "success"
+		resp.Data = map[string]interface{}{
+			"node": "",
 		}
 	}
-	_apiResponse(w, r, code, data)
+	_apiResponse(w, r, code, resp)
 }
