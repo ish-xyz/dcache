@@ -103,7 +103,7 @@ func (no *Node) Register() error {
 }
 
 // add 1 node connection on the scheduler
-func (no *Node) AddNodeConnection() error {
+func (no *Node) AddConnection() error {
 
 	var resp Response
 
@@ -140,7 +140,7 @@ func (no *Node) AddNodeConnection() error {
 }
 
 // remove 1 node connection on the scheduler
-func (no *Node) RemoveNodeConnection() error {
+func (no *Node) RemoveConnection() error {
 
 	var resp Response
 
@@ -257,6 +257,10 @@ func (no *Node) NotifyLayer(layer, ops string) error {
 	}
 
 	logrus.Infof("succcess: %s connection for layer %s", ops, layer)
+	return nil
+}
+
+func (no *Node) FindSource(layer string) error {
 	return nil
 }
 
