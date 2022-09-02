@@ -40,6 +40,7 @@ func (s *Server) Run() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/v1/registerNode", s._registerNode).Methods("POST")
+	r.HandleFunc("/v1/getNode/{nodeName}", s._getNode).Methods("GET")
 	r.HandleFunc("/v1/addNodeConnection/{nodeName}", s._addNodeConnection).Methods("PUT")
 	r.HandleFunc("/v1/removeNodeConnection/{nodeName}", s._removeNodeConnection).Methods("DELETE")
 	r.HandleFunc("/v1/setNodeConnections/{nodeName}/{conns}", s._setNodeConnections).Methods("PUT")
@@ -79,9 +80,9 @@ func (s *Server) _removeNodeConnection(w http.ResponseWriter, r *http.Request) {
 
 	var resp Response
 	vars := mux.Vars(r)
-	node := vars["nodeName"]
+	nodeName := vars["nodeName"]
 
-	err := s.Scheduler.removeNodeConnection(node)
+	err := s.Scheduler.removeNodeConnection(nodeName)
 	if err != nil {
 		logrus.Warnln("_removeNodeConnection:", err.Error())
 		resp.Status = "error"
@@ -119,7 +120,7 @@ func (s *Server) _setNodeConnections(w http.ResponseWriter, r *http.Request) {
 
 	var resp Response
 	vars := mux.Vars(r)
-	node := vars["nodeName"]
+	nodeName := vars["nodeName"]
 
 	connsParam := vars["conns"]
 	conns, err := strconv.Atoi(connsParam)
@@ -131,7 +132,7 @@ func (s *Server) _setNodeConnections(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = s.Scheduler.setNodeConnections(node, conns)
+	err = s.Scheduler.setNodeConnections(nodeName, conns)
 	if err != nil {
 		logrus.Warnln("_setNodeConnections:", err.Error())
 		resp.Status = "error"
@@ -182,10 +183,10 @@ func (s *Server) _removeNodeForLayer(w http.ResponseWriter, r *http.Request) {
 
 	var resp Response
 	vars := mux.Vars(r)
-	node := vars["nodeName"]
+	nodeName := vars["nodeName"]
 	layer := vars["layer"]
 
-	err := s.Scheduler.removeNodeForLayer(layer, node, false)
+	err := s.Scheduler.removeNodeForLayer(layer, nodeName, false)
 	if err != nil {
 		logrus.Warnln("_removeNodeForLayer:", err.Error())
 		resp.Status = "error"
@@ -204,10 +205,10 @@ func (s *Server) _addNodeForLayer(w http.ResponseWriter, r *http.Request) {
 
 	var resp Response
 	vars := mux.Vars(r)
-	node := vars["nodeName"]
+	nodeName := vars["nodeName"]
 	layer := vars["layer"]
 
-	err := s.Scheduler.addNodeForLayer(layer, node)
+	err := s.Scheduler.addNodeForLayer(layer, nodeName)
 	if err != nil {
 		logrus.Warnln("_addNodeForLayer:", err.Error())
 		resp.Status = "error"
@@ -254,6 +255,23 @@ func (s *Server) _schedule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) _getNode(w http.ResponseWriter, r *http.Request) {
-	//var resp Response
-	return
+	var resp Response
+	vars := mux.Vars(r)
+	nodeName := vars["nodeName"]
+
+	node, err := s.Scheduler.getNode(nodeName)
+	if err != nil {
+		logrus.Warnln("_getNode:", err.Error())
+		resp.Status = "error"
+		resp.Message = err.Error()
+		_apiResponse(w, r, 500, resp)
+		return
+	}
+
+	resp.Status = "success"
+	resp.Data = map[string]interface{}{
+		"node": node,
+	}
+
+	_apiResponse(w, r, 200, resp)
 }

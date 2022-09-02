@@ -130,3 +130,14 @@ func (sch *Scheduler) schedule(layer string) (*storage.NodeStat, error) {
 
 	return candidate, nil
 }
+
+// Get nodeStat from storage
+func (sch *Scheduler) getNode(nodeName string) (*storage.NodeStat, error) {
+
+	node, err := sch.Store.ReadNode(nodeName)
+	if err != nil {
+		return nil, err
+	}
+
+	return node, nil
+}

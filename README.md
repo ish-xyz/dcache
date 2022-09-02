@@ -1,3 +1,3 @@
 DREG
 
-Distributed registry caching layer
+Distributed Cache for container registries.

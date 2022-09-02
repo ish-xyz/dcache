@@ -106,7 +106,7 @@ func (no *Node) AddNodeConnection() error {
 
 	var resp Response
 
-	resource := fmt.Sprintf("%s/%s/%s", no.Scheduler, apiVersion, "addNodeConnection")
+	resource := fmt.Sprintf("%s/%s/%s/%s", no.Scheduler, apiVersion, "addNodeConnection", no.Name)
 
 	logrus.Infoln("adding connection to node")
 
@@ -125,6 +125,7 @@ func (no *Node) AddNodeConnection() error {
 	body, _ := ioutil.ReadAll(rawResp.Body)
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
+		logrus.Warnln("error decoding payload:", err)
 		return err
 	}
 
@@ -135,6 +136,42 @@ func (no *Node) AddNodeConnection() error {
 
 	logrus.Infoln("connection added successfully")
 	return nil
+}
+
+func (no *Node) Get() map[string]interface{} {
+
+	var resp Response
+
+	resource := fmt.Sprintf("%s/%s/%s/%s", no.Scheduler, apiVersion, "getNode", no.Name)
+
+	logrus.Infoln("getting nodeStat information")
+
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		requestIDKey:   generateNewID(),
+	}
+
+	rawResp, err := no.Request("GET", resource, headers, nil)
+	if err != nil {
+		logrus.Warnf("error requesting resource: %s", resource)
+		return nil
+	}
+	defer rawResp.Body.Close()
+
+	body, _ := ioutil.ReadAll(rawResp.Body)
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		logrus.Warnln("error decoding payload:", err)
+		return nil
+	}
+
+	if resp.Status != "success" {
+		logrus.Warnf("error received from scheduler: %s", resp.Message)
+		return nil
+	}
+
+	logrus.Infoln("connection added successfully")
+	return resp.Data
 }
 
 /*
