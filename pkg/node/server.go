@@ -7,6 +7,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"regexp"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 )
@@ -27,35 +28,55 @@ type UpstreamConfig struct {
 // ProxyRequestHandler handles the http request using proxy
 func (srv *Server) ProxyRequestHandler(proxy *httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+
 		if srv.Regex.MatchString(r.RequestURI) {
 
-			upsReq := fmt.Sprintf("%s%s", srv.Upstream.Address, r.RequestURI)
-			resp, err := http.Head(upsReq)
+			logrus.Debugln("regex matched for ", r.RequestURI)
+
+			// // Make a copy of the request
+			headReq := *r
+			headReq.Host = strings.Split(srv.Upstream.Address, "://")[1]
+			// illegal to have RequestURI set in request object, should always be computed
+			headReq.RequestURI = ""
+			headReq.Method = "HEAD"
+
+			resource := fmt.Sprintf("%s%s", srv.Upstream.Address, strings.TrimPrefix(r.RequestURI, "/proxy"))
+
+			logrus.Debugln("head request to ", resource)
+			u, err := url.Parse(resource)
 			if err != nil {
+				logrus.Debugln("url parsing failed for", resource)
+				goto upstream
+			}
+
+			headReq.URL = u
+			headResp, err := srv.Node.Client.Do(&headReq)
+			if err != nil {
+				logrus.Debugln("error with head request", err)
 				goto upstream
 			}
 			// head request should have no body, but it's best practice to close the body
-			defer resp.Body.Close()
+			defer headResp.Body.Close()
 
-			is2xx := resp.StatusCode >= 200 && resp.StatusCode < 300
-			if !is2xx {
+			if headResp.StatusCode != 200 {
+				logrus.Debugln("head request status code is", headResp.StatusCode)
 				goto upstream
 			}
 
-			// TODO: contact scheduler for download
-			// Call scheduler and ask to schedule()
+			logrus.Warnln("caching not implemented yet - skipping")
 
-			// Download from node if found
-			// calculate SHA256, verify SHA256
-			// if SHA256 is valid, communicate to scheduler that this node has that layer too
-
-			fmt.Println("caching")
-			proxy.ServeHTTP(w, r)
-			return
+			// flag as layer
+			// get layer using *GetLayer()
+			// get node using FindNode(layer)
+			// if not found, goto upstream
+			// if found change the r.URL to the node URL
+			// goto upstream
+			// if sha256CheckEnabled => calculate & compare sha256 => if flagged as layer => notifyLayer(add, layerId)
 		}
 	upstream:
 		fmt.Println("not caching")
 		proxy.ServeHTTP(w, r)
+
 	}
 }
 
@@ -67,15 +88,14 @@ func (srv *Server) Run() error {
 		return err
 	}
 
-	proxy := httputil.NewSingleHostReverseProxy(url)
-	fmt.Println(srv.DataDir)
+	proxy := newCustomProxy(url, "/proxy")
 	fs := http.FileServer(http.Dir(srv.DataDir))
 
 	// handle all requests to your server using the proxy
 	logrus.Infof("starting up server on %s", srv.Address)
 
 	http.Handle("/data/", http.StripPrefix("/data/", fs))
-	http.HandleFunc("/proxy", srv.ProxyRequestHandler(proxy))
+	http.HandleFunc("/proxy/", srv.ProxyRequestHandler(proxy))
 
 	log.Fatal(http.ListenAndServe(srv.Address, nil))
 	return nil
