@@ -1,22 +1,18 @@
 package node
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strings"
-
-	"github.com/sirupsen/logrus"
 )
 
 func newCustomProxy(target *url.URL, prefix string) *httputil.ReverseProxy {
 	targetQuery := target.RawQuery
 	director := func(req *http.Request) {
-		fmt.Println(target.Scheme)
-		fmt.Println(target.Host)
 		req.URL.Scheme = target.Scheme
 		req.URL.Host = target.Host
+		req.Host = target.Host
 		req.URL.Path = strings.TrimPrefix(req.URL.Path, prefix)
 		req.RequestURI = strings.TrimPrefix(req.RequestURI, prefix)
 		req.URL.Path, req.URL.RawPath = joinURLPath(target, req.URL)
@@ -30,8 +26,6 @@ func newCustomProxy(target *url.URL, prefix string) *httputil.ReverseProxy {
 			// explicitly disable User-Agent so it's not set to default value
 			req.Header.Set("User-Agent", "")
 		}
-
-		logrus.Debugf("%+v", req)
 	}
 	return &httputil.ReverseProxy{Director: director}
 }

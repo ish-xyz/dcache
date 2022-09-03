@@ -41,7 +41,7 @@ func startNode(cmd *cobra.Command, args []string) {
 	_node := node.NewNode(requestIDKey, "mynode", "127.0.0.1", "http://127.0.0.1:8000", 8100)
 	//ctx := context.WithValue(parentCtx, requestIDKey, generateNewID())
 
-	re := regexp.MustCompile(".*")
+	re := regexp.MustCompile(".*asdasdasdasdas.*")
 	srv := &node.Server{
 		Node:    _node,
 		DataDir: "/Users/ishamaraia/repos/dreg/data/",

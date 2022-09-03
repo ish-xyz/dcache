@@ -36,8 +36,8 @@ func (srv *Server) ProxyRequestHandler(proxy *httputil.ReverseProxy) func(http.R
 			// // Make a copy of the request
 			headReq := *r
 			headReq.Host = strings.Split(srv.Upstream.Address, "://")[1]
-			// illegal to have RequestURI set in request object, should always be computed
-			headReq.RequestURI = ""
+
+			headReq.RequestURI = "" // it's illegal to have RequestURI predefined
 			headReq.Method = "HEAD"
 
 			resource := fmt.Sprintf("%s%s", srv.Upstream.Address, strings.TrimPrefix(r.RequestURI, "/proxy"))
