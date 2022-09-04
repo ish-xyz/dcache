@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"github.com/go-playground/validator"
+	"github.com/ish-xyz/dreg/pkg/node"
 	"github.com/ish-xyz/dreg/pkg/scheduler/storage"
 	"github.com/sirupsen/logrus"
 )
@@ -61,7 +62,7 @@ func (sch *Scheduler) setNodeConnections(nodeName string, conns int) error {
 }
 
 // Add node to list of nodes
-func (sch *Scheduler) registerNode(node *storage.NodeStat) error {
+func (sch *Scheduler) registerNode(node *node.NodeStat) error {
 
 	err := validate.Struct(node)
 	if err != nil {
@@ -94,7 +95,7 @@ func (sch *Scheduler) removeNodeForLayer(layer, nodeName string, force bool) err
 }
 
 // Get nodeStat from storage
-func (sch *Scheduler) getNode(nodeName string) (*storage.NodeStat, error) {
+func (sch *Scheduler) getNode(nodeName string) (*node.NodeStat, error) {
 
 	node, err := sch.Store.ReadNode(nodeName)
 	if err != nil {
@@ -108,9 +109,9 @@ func (sch *Scheduler) getNode(nodeName string) (*storage.NodeStat, error) {
 // then look for the node that has the least connection
 // if node not found, return nil
 // TODO: add more advanced scheduling
-func (sch *Scheduler) schedule(layer string) (*storage.NodeStat, error) {
+func (sch *Scheduler) schedule(layer string) (*node.NodeStat, error) {
 
-	candidate := &storage.NodeStat{
+	candidate := &node.NodeStat{
 		Connections: sch.MaxProcs + 1,
 		Name:        "DUMMY_CANDIDATE",
 		IPv4:        "127.0.0.1",
@@ -136,7 +137,7 @@ func (sch *Scheduler) schedule(layer string) (*storage.NodeStat, error) {
 
 	// TODO: Cleanup candidate, this it's a bit ugly.. needs adjustments
 	if candidate.Name == "DUMMY_CANDIDATE" {
-		candidate = &storage.NodeStat{}
+		candidate = &node.NodeStat{}
 	}
 
 	return candidate, nil

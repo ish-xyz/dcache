@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"github.com/ish-xyz/dreg/pkg/scheduler/storage"
+	"github.com/ish-xyz/dreg/pkg/node"
 	"github.com/sirupsen/logrus"
 )
 
@@ -149,7 +149,7 @@ func (s *Server) _setNodeConnections(w http.ResponseWriter, r *http.Request) {
 func (s *Server) _registerNode(w http.ResponseWriter, r *http.Request) {
 
 	var resp Response
-	var _node storage.NodeStat
+	var _node node.NodeStat
 	body, _ := ioutil.ReadAll(r.Body)
 
 	err := json.Unmarshal(body, &_node)

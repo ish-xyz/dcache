@@ -25,6 +25,13 @@ type Response struct {
 	Data    map[string]interface{} `json:"data"`
 }
 
+type NodeStat struct {
+	Name        string `json:"name" validate:"required,alphanum"`
+	IPv4        string `json:"ipv4" validate:"required,ip"`
+	Connections int    `json:"connections"`
+	Port        int    `json:"port" validate:"required"`
+}
+
 type Node struct {
 	RequestIDKey ContextKey
 	Name         string
