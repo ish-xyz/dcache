@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"path"
 	"regexp"
 	"strings"
 
@@ -25,7 +26,8 @@ type UpstreamConfig struct {
 	Insecure bool
 }
 
-func runHeadRequest(client *http.Client, req *http.Request, upstream, proxyPath string) error {
+// Perform a head request to the upstream to check if the resource should be accessed
+func checkSource(client *http.Client, req *http.Request, upstream, proxyPath string) error {
 
 	// Prepare HEAD request
 	ctx := req.Context()
@@ -64,11 +66,21 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 
 			logrus.Debugln("regex matched for ", r.RequestURI)
 
-			err := runHeadRequest(srv.Node.Client, r, srv.Upstream.Address, proxyPath)
+			err := checkSource(srv.Node.Client, r, srv.Upstream.Address, proxyPath)
 			if err != nil {
-				logrus.Warn(err)
+				logrus.Warnln("falling back to upstream, because of error:", err)
 				goto runProxy
 			}
+
+			layer := path.Base(r.URL.Path)
+			nodeStat, err := srv.Node.FindSource(r.Context(), layer)
+			if err != nil {
+				logrus.Warnln("falling back to upstream, because of error:", err)
+				goto runProxy
+			}
+
+			logrus.Warn(layer)
+			logrus.Warn(nodeStat)
 
 			goto runFakeProxy
 
