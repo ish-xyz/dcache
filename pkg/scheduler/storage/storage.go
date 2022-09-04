@@ -1,11 +1,17 @@
 package storage
 
-import "github.com/ish-xyz/dreg/pkg/node"
+// Node information necessary for the scheduler
+type NodeStat struct {
+	Name        string `json:"name" validate:"required,alphanum"`
+	IPv4        string `json:"ipv4" validate:"required,ip"`
+	Connections int    `json:"connections"`
+	Port        int    `json:"port" validate:"required"`
+}
 
 // Write() -> location,
 type Storage interface {
-	WriteNode(node *node.NodeStat, force bool) error
-	ReadNode(nodeName string) (*node.NodeStat, error)
+	WriteNode(node *NodeStat, force bool) error
+	ReadNode(nodeName string) (*NodeStat, error)
 	WriteLayer(layer string, nodeName string, ops string) error
 	ReadLayer(layer string) (map[string]int, error)
 }
@@ -14,6 +20,6 @@ type Storage interface {
 func NewStorage(storageType string, opts map[string]string) Storage {
 	return &MemoryStorage{
 		LayersStorage: map[string]map[string]int{},
-		Nodes:         map[string]*node.NodeStat{},
+		Nodes:         map[string]*NodeStat{},
 	}
 }

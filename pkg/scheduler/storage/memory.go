@@ -3,18 +3,16 @@ package storage
 import (
 	"fmt"
 	"sync"
-
-	"github.com/ish-xyz/dreg/pkg/node"
 )
 
 type MemoryStorage struct {
 	LayersStorage map[string]map[string]int
-	Nodes         map[string]*node.NodeStat
+	Nodes         map[string]*NodeStat
 }
 
 var lock = sync.RWMutex{}
 
-func (store *MemoryStorage) WriteNode(node *node.NodeStat, force bool) error {
+func (store *MemoryStorage) WriteNode(node *NodeStat, force bool) error {
 
 	_, ok := store.Nodes[node.Name]
 	if ok && !force {
@@ -24,7 +22,7 @@ func (store *MemoryStorage) WriteNode(node *node.NodeStat, force bool) error {
 	return nil
 }
 
-func (store *MemoryStorage) ReadNode(nodeName string) (*node.NodeStat, error) {
+func (store *MemoryStorage) ReadNode(nodeName string) (*NodeStat, error) {
 	lock.Lock()
 	defer lock.Unlock()
 
