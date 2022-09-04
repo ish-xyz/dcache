@@ -7,6 +7,16 @@ import (
 	"strings"
 )
 
+func newFakeProxy() *httputil.ReverseProxy {
+	director := func(req *http.Request) {
+		if _, ok := req.Header["User-Agent"]; !ok {
+			// explicitly disable User-Agent so it's not set to default value
+			req.Header.Set("User-Agent", "")
+		}
+	}
+	return &httputil.ReverseProxy{Director: director}
+}
+
 func newCustomProxy(target *url.URL, prefix string) *httputil.ReverseProxy {
 	targetQuery := target.RawQuery
 	director := func(req *http.Request) {
