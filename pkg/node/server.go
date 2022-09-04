@@ -25,42 +25,52 @@ type UpstreamConfig struct {
 	Insecure bool
 }
 
+func runHeadRequest(client *http.Client, req *http.Request, upstream, proxyPath string) error {
+
+	// Prepare HEAD request
+	ctx := req.Context()
+	headReq := req.Clone(ctx)
+	httpResource := fmt.Sprintf("%s%s", upstream, strings.TrimPrefix(req.RequestURI, proxyPath))
+	headReq.Host = strings.Split(upstream, "://")[1]
+	headReq.RequestURI = "" // it's illegal to have RequestURI predefined
+	headReq.Method = "HEAD"
+	u, err := url.Parse(httpResource)
+	if err != nil {
+		return fmt.Errorf("url parsing failed for %s", httpResource)
+	} else {
+		headReq.URL = u
+	}
+
+	// Perform HEAD request
+	headResp, err := client.Do(headReq)
+	if err != nil {
+		return fmt.Errorf("error with HEAD request %v", err)
+	}
+	defer headResp.Body.Close()
+
+	if headResp.StatusCode != 200 {
+		return fmt.Errorf("HEAD request status code is not 200, is: %d", headResp.StatusCode)
+	}
+
+	return nil
+
+}
+
 // ProxyRequestHandler handles the http request using proxy
-func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy) func(http.ResponseWriter, *http.Request) {
+func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, proxyPath string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		if srv.Regex.MatchString(r.RequestURI) {
 
 			logrus.Debugln("regex matched for ", r.RequestURI)
 
-			// Make a copy of the request, to perform a HEAD request
-			ctx := r.Context()
-			headReq := r.Clone(ctx)
-			headReq.Host = strings.Split(srv.Upstream.Address, "://")[1]
-			headReq.RequestURI = "" // it's illegal to have RequestURI predefined
-			headReq.Method = "HEAD"
-			httpResource := fmt.Sprintf("%s%s", srv.Upstream.Address, strings.TrimPrefix(r.RequestURI, "/proxy"))
-			u, err := url.Parse(httpResource)
+			err := runHeadRequest(srv.Node.Client, r, srv.Upstream.Address, proxyPath)
 			if err != nil {
-				logrus.Debugln("url parsing failed for", httpResource)
-				goto upstream
+				logrus.Warn(err)
+				goto runProxy
 			}
-			headReq.URL = u
 
-			logrus.Debugln("performing HEAD request to ", httpResource)
-			headResp, err := srv.Node.Client.Do(headReq)
-			if err != nil {
-				logrus.Debugln("error with HEAD request", err)
-				goto upstream
-			}
-			defer headResp.Body.Close()
-
-			if headResp.StatusCode != 200 {
-				logrus.Warnln("HEAD request status code is not 200")
-				logrus.Debugln("HEAD request status code is", headResp.StatusCode)
-				goto upstream
-			}
-			logrus.Warnln("caching not implemented yet - skipping")
+			goto runFakeProxy
 
 			// flag as layer (use context?)
 			// get layer using *GetLayer()
@@ -71,8 +81,11 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy) 
 			// if sha256CheckEnabled => calculate & compare sha256 => if flagged as layer => notifyLayer(add, layerId)
 			// fakeProxy.ServerHTTP(w, r)
 		}
-	upstream:
-		logrus.Info("request not cached")
+	runProxy:
+		logrus.Info("running proxy")
+		proxy.ServeHTTP(w, r)
+	runFakeProxy:
+		logrus.Info("running fakeProxy")
 		proxy.ServeHTTP(w, r)
 	}
 }
@@ -85,15 +98,16 @@ func (srv *Server) Run() error {
 		return err
 	}
 
+	proxyPath := "/proxy"
 	fakeProxy := newFakeProxy()
-	proxy := newCustomProxy(url, "/proxy")
+	proxy := newCustomProxy(url, proxyPath)
 	fs := http.FileServer(http.Dir(srv.DataDir))
 
 	// handle all requests to your server using the proxy
 	logrus.Infof("starting up server on %s", srv.Address)
 
 	http.Handle("/data/", http.StripPrefix("/data/", fs))
-	http.HandleFunc("/proxy/", srv.ProxyRequestHandler(proxy, fakeProxy))
+	http.HandleFunc(fmt.Sprintf("%s/", proxyPath), srv.ProxyRequestHandler(proxy, fakeProxy, proxyPath))
 
 	log.Fatal(http.ListenAndServe(srv.Address, nil))
 	return nil
