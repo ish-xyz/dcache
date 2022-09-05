@@ -83,14 +83,12 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 
 			goto runFakeProxy
 
-			// flag as layer (use context?)
 			// get layer using *GetLayer()
 			// get node using FindNode(layer)
-			// if not found, goto upstream
-			// if found change the r.URL to the node URL
-			// goto upstream
-			// if sha256CheckEnabled => calculate & compare sha256 => if flagged as layer => notifyLayer(add, layerId)
-			// fakeProxy.ServerHTTP(w, r)
+			// if not found, goto runFakeProxy
+			// if found change the r.URL to the node URL & goto runFakeProxy
+			// TODO: if sha256CheckEnabled => calculate & compare sha256
+			// when download is completed notifyLayer()
 		}
 	runProxy:
 		logrus.Info("running proxy")
