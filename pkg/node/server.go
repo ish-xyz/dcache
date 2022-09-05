@@ -14,16 +14,15 @@ import (
 )
 
 type Server struct {
-	Node     *Node
-	Upstream *UpstreamConfig
-	Address  string
-	DataDir  string
-	Regex    *regexp.Regexp
+	Node     *Node           `validate:"required"`
+	Upstream *UpstreamConfig `validate:"required,dive"`
+	DataDir  string          `validate:"required,dir"`
+	Regex    *regexp.Regexp  `validate:"required"`
 }
 
 type UpstreamConfig struct {
-	Address  string
-	Insecure bool
+	Address  string `validate:"required,url"`
+	Insecure bool   `validate:"required,boolean"`
 }
 
 // Perform a head request to the upstream to check if the resource should be accessed
@@ -114,13 +113,15 @@ func (srv *Server) Run() error {
 	fakeProxy := newFakeProxy()
 	proxy := newCustomProxy(url, proxyPath)
 	fs := http.FileServer(http.Dir(srv.DataDir))
+	address := fmt.Sprintf("%s:%d", srv.Node.IPv4, srv.Node.Port)
 
 	// handle all requests to your server using the proxy
-	logrus.Infof("starting up server on %s", srv.Address)
+
+	logrus.Infof("starting up server on %s", address)
 
 	http.Handle("/data/", http.StripPrefix("/data/", fs))
 	http.HandleFunc(fmt.Sprintf("%s/", proxyPath), srv.ProxyRequestHandler(proxy, fakeProxy, proxyPath))
 
-	log.Fatal(http.ListenAndServe(srv.Address, nil))
+	log.Fatal(http.ListenAndServe(address, nil))
 	return nil
 }
