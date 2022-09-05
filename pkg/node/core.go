@@ -27,28 +27,28 @@ type Response struct {
 
 type NodeStat struct {
 	Name        string `json:"name" validate:"required,alphanum"`
-	IPv4        string `json:"ipv4" validate:"required,ip"`
+	IPv4        string `json:"ipv4" validate:"required,ipv4"`
 	Connections int    `json:"connections"`
 	Port        int    `json:"port" validate:"required"`
 }
 
 type Node struct {
-	RequestIDKey ContextKey
-	Name         string
-	IPv4         string
-	Scheduler    string
-	Port         int
-	Client       *http.Client
+	RequestIDKey     ContextKey   `validate:"required"`
+	Name             string       `validate:"required,alphanum"`
+	IPv4             string       `validate:"required,ipv4"`
+	SchedulerAddress string       `validate:"required,url"`
+	Port             int          `validate:"required,number"`
+	Client           *http.Client `validate:"required"`
 }
 
 func NewNode(key ContextKey, name, ipv4, scheduler string, port int) *Node {
 	return &Node{
-		RequestIDKey: key,
-		Name:         name,
-		IPv4:         ipv4,
-		Scheduler:    scheduler,
-		Port:         port,
-		Client:       &http.Client{},
+		RequestIDKey:     key,
+		Name:             name,
+		IPv4:             ipv4,
+		SchedulerAddress: scheduler,
+		Port:             port,
+		Client:           &http.Client{},
 	}
 }
 
@@ -67,7 +67,7 @@ func (no *Node) Register(ctx context.Context) error {
 
 	var resp Response
 
-	resource := fmt.Sprintf("%s/%s/%s", no.Scheduler, apiVersion, "registerNode")
+	resource := fmt.Sprintf("%s/%s/%s", no.SchedulerAddress, apiVersion, "registerNode")
 	payload, err := json.Marshal(map[string]interface{}{
 		"name":        no.Name,
 		"connections": 0,
@@ -116,7 +116,7 @@ func (no *Node) AddConnection(ctx context.Context) error {
 
 	var resp Response
 
-	resource := fmt.Sprintf("%s/%s/%s/%s", no.Scheduler, apiVersion, "addNodeConnection", no.Name)
+	resource := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "addNodeConnection", no.Name)
 
 	logrus.Infoln("adding 1 connection")
 
@@ -153,7 +153,7 @@ func (no *Node) RemoveConnection(ctx context.Context) error {
 
 	var resp Response
 
-	resource := fmt.Sprintf("%s/%s/%s/%s", no.Scheduler, apiVersion, "removeNodeConnection", no.Name)
+	resource := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "removeNodeConnection", no.Name)
 
 	logrus.Infoln("removing 1 connection")
 
@@ -190,7 +190,7 @@ func (no *Node) GetStat(ctx context.Context) (map[string]interface{}, error) {
 
 	var resp Response
 
-	resource := fmt.Sprintf("%s/%s/%s/%s", no.Scheduler, apiVersion, "getNode", no.Name)
+	resource := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "getNode", no.Name)
 
 	logrus.Infoln("getting nodeStat information")
 
@@ -230,10 +230,10 @@ func (no *Node) NotifyLayer(ctx context.Context, layer, ops string) error {
 	var method string
 
 	if ops == "add" {
-		resource = fmt.Sprintf("%s/%s/%s/%s", no.Scheduler, apiVersion, "addNodeConnection", no.Name)
+		resource = fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "addNodeConnection", no.Name)
 		method = "PUT"
 	} else if ops == "remove" {
-		resource = fmt.Sprintf("%s/%s/%s/%s", no.Scheduler, apiVersion, "removeNodeConnection", no.Name)
+		resource = fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "removeNodeConnection", no.Name)
 		method = "DELETE"
 	} else {
 		return fmt.Errorf("notifyLayer: unknown operation")
@@ -274,7 +274,7 @@ func (no *Node) FindSource(ctx context.Context, layer string) (map[string]string
 
 	var resp Response
 
-	resource := fmt.Sprintf("%s/%s/%s/%s", no.Scheduler, apiVersion, "schedule", layer)
+	resource := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "schedule", layer)
 
 	logrus.Infof("scheduling dowload for layer %s", layer)
 

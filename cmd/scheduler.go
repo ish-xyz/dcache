@@ -17,7 +17,7 @@ var (
 	schedulerStorage  string
 	schedulerAlgo     string
 	schedulerMaxProcs int
-	schedulerDebug    bool
+	schedulerVerbose  bool
 
 	schedulerCmd = &cobra.Command{
 		Use:   "scheduler",
@@ -32,7 +32,7 @@ func schedulerCLI() {
 	schedulerCmd.PersistentFlags().StringVarP(&schedulerStorage, "storage-type", "s", "memory", "Backend storage for schedulers")
 	schedulerCmd.PersistentFlags().StringVarP(&schedulerAlgo, "algo", "x", "LeastConnections", "Algorithm used by scheduler.")
 	schedulerCmd.PersistentFlags().IntVarP(&schedulerMaxProcs, "max-procs", "m", 10, "Max amount of concurrent connections for nodes.")
-	schedulerCmd.PersistentFlags().BoolVarP(&schedulerDebug, "debug", "d", false, "Run in debug mode")
+	schedulerCmd.PersistentFlags().BoolVarP(&schedulerVerbose, "verbose", "v", false, "Run scheduler in debug mode")
 
 	viper.BindPFlag("scheduler.address", schedulerCmd.PersistentFlags().Lookup("address"))
 	viper.BindPFlag("scheduler.storage.type", schedulerCmd.PersistentFlags().Lookup("storage-type"))
@@ -45,7 +45,7 @@ func startScheduler(cmd *cobra.Command, args []string) {
 
 	var storageOpts map[string]string
 
-	if schedulerDebug {
+	if schedulerVerbose {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
