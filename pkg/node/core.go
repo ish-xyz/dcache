@@ -25,13 +25,6 @@ type Response struct {
 	Data    map[string]interface{} `json:"data"`
 }
 
-type NodeStat struct {
-	Name        string `json:"name" validate:"required,alphanum"`
-	IPv4        string `json:"ipv4" validate:"required,ipv4"`
-	Connections int    `json:"connections"`
-	Port        int    `json:"port" validate:"required"`
-}
-
 type Node struct {
 	RequestIDKey     ContextKey   `validate:"required"`
 	Name             string       `validate:"required,alphanum"`
@@ -39,9 +32,18 @@ type Node struct {
 	SchedulerAddress string       `validate:"required,url"`
 	Port             int          `validate:"required,number"`
 	Client           *http.Client `validate:"required"`
+	Scheme           string       `validate:"required"`
 }
 
-func NewNode(key ContextKey, name, ipv4, scheduler string, port int) *Node {
+type NodeStat struct {
+	Name        string `json:"name" validate:"required,alphanum"`
+	IPv4        string `json:"ipv4" validate:"required,ip"`
+	Connections int    `json:"connections"`
+	Port        int    `json:"port" validate:"required"`
+	Scheme      string `json:"scheme" validate:"required"`
+}
+
+func NewNode(key ContextKey, name, ipv4, scheme, scheduler string, port int) *Node {
 	return &Node{
 		RequestIDKey:     key,
 		Name:             name,
@@ -49,6 +51,7 @@ func NewNode(key ContextKey, name, ipv4, scheduler string, port int) *Node {
 		SchedulerAddress: scheduler,
 		Port:             port,
 		Client:           &http.Client{},
+		Scheme:           scheme,
 	}
 }
 
@@ -68,12 +71,14 @@ func (no *Node) Register(ctx context.Context) error {
 	var resp Response
 
 	resource := fmt.Sprintf("%s/%s/%s", no.SchedulerAddress, apiVersion, "registerNode")
-	payload, err := json.Marshal(map[string]interface{}{
-		"name":        no.Name,
-		"connections": 0,
-		"ipv4":        no.IPv4,
-		"port":        no.Port,
-	})
+	nodestat := &NodeStat{
+		Name:        no.Name,
+		IPv4:        no.IPv4,
+		Port:        no.Port,
+		Scheme:      no.Scheme,
+		Connections: 0,
+	}
+	payload, err := json.Marshal(nodestat)
 	if err != nil {
 		return err
 	}
@@ -186,7 +191,7 @@ func (no *Node) RemoveConnection(ctx context.Context) error {
 }
 
 // returns a map[string]interface{} with the node stat from the scheduler storage
-func (no *Node) GetStat(ctx context.Context) (map[string]interface{}, error) {
+func (no *Node) Stat(ctx context.Context) (*NodeStat, error) {
 
 	var resp Response
 
@@ -219,7 +224,17 @@ func (no *Node) GetStat(ctx context.Context) (map[string]interface{}, error) {
 	}
 
 	logrus.Infoln("connection added successfully")
-	return resp.Data["node"].(map[string]interface{}), nil
+
+	//TODO: find a cleaner way
+	nodestat := &NodeStat{
+		Name:        resp.Data["node"].(map[string]interface{})["name"].(string),
+		IPv4:        resp.Data["node"].(map[string]interface{})["ipv4"].(string),
+		Port:        resp.Data["node"].(map[string]interface{})["port"].(int),
+		Connections: resp.Data["node"].(map[string]interface{})["connections"].(int),
+		Scheme:      resp.Data["node"].(map[string]interface{})["scheme"].(string),
+	}
+
+	return nodestat, nil
 }
 
 // Ask the scheduler to find a node to download the layer
@@ -270,7 +285,7 @@ func (no *Node) NotifyLayer(ctx context.Context, layer, ops string) error {
 }
 
 // find node to download from
-func (no *Node) FindSource(ctx context.Context, layer string) (map[string]string, error) {
+func (no *Node) FindSource(ctx context.Context, layer string) (*NodeStat, error) {
 
 	var resp Response
 
@@ -306,10 +321,17 @@ func (no *Node) FindSource(ctx context.Context, layer string) (map[string]string
 		return nil, fmt.Errorf("no node found for layer %s", layer)
 	}
 
-	nodeMap := resp.Data["node"].(map[string]string)
+	//TODO: find a cleaner way
+	nodestat := &NodeStat{
+		Name:        resp.Data["node"].(map[string]interface{})["name"].(string),
+		IPv4:        resp.Data["node"].(map[string]interface{})["ipv4"].(string),
+		Port:        resp.Data["node"].(map[string]interface{})["port"].(int),
+		Connections: resp.Data["node"].(map[string]interface{})["connections"].(int),
+		Scheme:      resp.Data["node"].(map[string]interface{})["scheme"].(string),
+	}
 
-	logrus.Infof("succcessfully found node %s", nodeMap["name"])
-	return nodeMap, nil
+	logrus.Infof("succcessfully found node %s", nodestat.Name)
+	return nodestat, nil
 }
 
 /*

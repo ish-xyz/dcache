@@ -6,6 +6,7 @@ type NodeStat struct {
 	IPv4        string `json:"ipv4" validate:"required,ip"`
 	Connections int    `json:"connections"`
 	Port        int    `json:"port" validate:"required"`
+	Scheme      string `json:"scheme" validate:"required"`
 }
 
 // Write() -> location,

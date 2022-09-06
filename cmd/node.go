@@ -79,7 +79,7 @@ func startNode(cmd *cobra.Command, args []string) {
 		// in struct validation later
 	}
 
-	_node := node.NewNode(requestIDKey, nodeName, nodeIPv4, nodeSchedulerAddress, nodePort)
+	_node := node.NewNode(requestIDKey, nodeName, nodeIPv4, "http", nodeSchedulerAddress, nodePort)
 
 	err := validate.Struct(_node)
 	if err != nil {

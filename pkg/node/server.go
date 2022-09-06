@@ -72,23 +72,25 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 			}
 
 			layer := path.Base(r.URL.Path)
-			nodeStat, err := srv.Node.FindSource(r.Context(), layer)
+			nodestat, err := srv.Node.FindSource(r.Context(), layer)
 			if err != nil {
-				logrus.Warnln("falling back to upstream, because of error:", err)
+				logrus.Infoln("can't find peer able to serve layer. Falling back to upstream")
+				logrus.Debugln(err)
 				goto runProxy
 			}
 
-			logrus.Warn(layer)
-			logrus.Warn(nodeStat)
+			r.URL.Scheme = nodestat.Scheme
+			r.URL.Host = nodestat.IPv4
+			r.Host = nodestat.IPv4
+			r.URL.Path = strings.TrimPrefix(r.URL.Path, proxyPath)
+			r.RequestURI = strings.TrimPrefix(r.RequestURI, proxyPath)
+
+			if _, ok := r.Header["User-Agent"]; !ok {
+				// explicitly disable User-Agent so it's not set to default value
+				r.Header.Set("User-Agent", "")
+			}
 
 			goto runFakeProxy
-
-			// get layer using *GetLayer()
-			// get node using FindNode(layer)
-			// if not found, goto runFakeProxy
-			// if found change the r.URL to the node URL & goto runFakeProxy
-			// TODO: if sha256CheckEnabled => calculate & compare sha256
-			// when download is completed notifyLayer()
 		}
 	runProxy:
 		logrus.Info("running proxy")
@@ -96,6 +98,8 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 	runFakeProxy:
 		logrus.Info("running fakeProxy")
 		proxy.ServeHTTP(w, r)
+
+		fmt.Println("post servehttp")
 	}
 }
 
