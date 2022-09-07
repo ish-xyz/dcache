@@ -70,25 +70,25 @@ func (sch *Scheduler) registerNode(node *storage.NodeStat) error {
 	return sch.Store.WriteNode(node, false)
 }
 
-// Called by the client when the download of a given layer is completed
-func (sch *Scheduler) addNodeForLayer(layer, nodeName string) error {
+// Called by the client when the download of a given item is completed
+func (sch *Scheduler) addNodeForItem(item, nodeName string) error {
 
-	return sch.Store.WriteLayer(layer, nodeName, "add")
+	return sch.Store.WriteIndex(item, nodeName, "add")
 }
 
-// Used by garbage collector when removing layers
-func (sch *Scheduler) removeNodeForLayer(layer, nodeName string, force bool) error {
+// Used by garbage collector when removing items
+func (sch *Scheduler) removeNodeForItem(item, nodeName string, force bool) error {
 
-	_layer, err := sch.Store.ReadLayer(layer)
+	_item, err := sch.Store.ReadIndex(item)
 	if err != nil {
 		return nil
 	}
 	if force {
-		return sch.Store.WriteLayer(layer, nodeName, "delete")
+		return sch.Store.WriteIndex(item, nodeName, "delete")
 	}
-	sch.Store.WriteLayer(layer, nodeName, "remove")
-	if _layer[nodeName] <= 0 {
-		sch.Store.WriteLayer(layer, nodeName, "delete")
+	sch.Store.WriteIndex(item, nodeName, "remove")
+	if _item[nodeName] <= 0 {
+		sch.Store.WriteIndex(item, nodeName, "delete")
 	}
 	return nil
 }
@@ -104,18 +104,15 @@ func (sch *Scheduler) getNode(nodeName string) (*storage.NodeStat, error) {
 	return node, nil
 }
 
-// Look for all the nodes that have a specific layer,
+// Look for all the nodes that have a specific item,
 // then look for the node that has the least connection
 // if node not found, return nil
-// TODO: add more advanced scheduling
-func (sch *Scheduler) schedule(layer string) (*storage.NodeStat, error) {
+func (sch *Scheduler) schedule(item string) (*storage.NodeStat, error) {
 
 	candidate := &storage.NodeStat{
 		Connections: sch.MaxProcs + 1,
-		Name:        "DUMMY_CANDIDATE",
-		IPv4:        "127.0.0.1",
 	}
-	nodes, err := sch.Store.ReadLayer(layer)
+	nodes, err := sch.Store.ReadIndex(item)
 	if err != nil {
 		return candidate, nil
 	}
@@ -135,7 +132,7 @@ func (sch *Scheduler) schedule(layer string) (*storage.NodeStat, error) {
 	}
 
 	// TODO: Cleanup candidate, this it's a bit ugly.. needs adjustments
-	if candidate.Name == "DUMMY_CANDIDATE" {
+	if candidate.Connections == sch.MaxProcs+1 {
 		candidate = &storage.NodeStat{}
 	}
 

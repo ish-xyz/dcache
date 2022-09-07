@@ -237,8 +237,8 @@ func (no *Node) Stat(ctx context.Context) (*NodeStat, error) {
 	return nodestat, nil
 }
 
-// Ask the scheduler to find a node to download the layer
-func (no *Node) NotifyLayer(ctx context.Context, layer, ops string) error {
+// Ask the scheduler to find a node to download the item
+func (no *Node) NotifyItem(ctx context.Context, item, ops string) error {
 
 	var resp Response
 	var resource string
@@ -251,10 +251,10 @@ func (no *Node) NotifyLayer(ctx context.Context, layer, ops string) error {
 		resource = fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "removeNodeConnection", no.Name)
 		method = "DELETE"
 	} else {
-		return fmt.Errorf("notifyLayer: unknown operation")
+		return fmt.Errorf("NotifyItem: unknown operation")
 	}
 
-	logrus.Infof("notifying removal of layer %s", layer)
+	logrus.Infof("notifying removal of item %s", item)
 
 	headers := map[string]string{
 		"Content-Type":          "application/json",
@@ -280,18 +280,18 @@ func (no *Node) NotifyLayer(ctx context.Context, layer, ops string) error {
 		return err
 	}
 
-	logrus.Infof("succcess: %s connection for layer %s", ops, layer)
+	logrus.Infof("succcess: %s connection for item %s", ops, item)
 	return nil
 }
 
 // find node to download from
-func (no *Node) FindSource(ctx context.Context, layer string) (*NodeStat, error) {
+func (no *Node) FindSource(ctx context.Context, item string) (*NodeStat, error) {
 
 	var resp Response
 
-	resource := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "schedule", layer)
+	resource := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "schedule", item)
 
-	logrus.Infof("scheduling dowload for layer %s", layer)
+	logrus.Infof("scheduling dowload for item %s", item)
 
 	headers := map[string]string{
 		"Content-Type":          "application/json",
@@ -318,7 +318,7 @@ func (no *Node) FindSource(ctx context.Context, layer string) (*NodeStat, error)
 	}
 
 	if resp.Data["node"] == "" {
-		return nil, fmt.Errorf("no node found for layer %s", layer)
+		return nil, fmt.Errorf("no node found for item %s", item)
 	}
 
 	//TODO: find a cleaner way

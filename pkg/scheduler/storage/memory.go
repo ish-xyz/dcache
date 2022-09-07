@@ -6,8 +6,8 @@ import (
 )
 
 type MemoryStorage struct {
-	LayersStorage map[string]map[string]int
-	Nodes         map[string]*NodeStat
+	Index map[string]map[string]int
+	Nodes map[string]*NodeStat
 }
 
 var lock = sync.RWMutex{}
@@ -33,27 +33,27 @@ func (store *MemoryStorage) ReadNode(nodeName string) (*NodeStat, error) {
 	return nil, fmt.Errorf("node does not exists")
 }
 
-// Write nodes statuses for layers
-func (store *MemoryStorage) WriteLayer(layer string, nodeName string, ops string) error {
+// Write nodes statuses for items
+func (store *MemoryStorage) WriteIndex(hash string, nodeName string, ops string) error {
 
 	if ops == "delete" {
-		delete(store.LayersStorage[layer], nodeName)
+		delete(store.Index[hash], nodeName)
 		return nil
 	} else if ops == "add" {
-		store.LayersStorage[layer][nodeName] += 1
+		store.Index[hash][nodeName] += 1
 		return nil
 	} else if ops == "remove" {
-		store.LayersStorage[layer][nodeName] -= 1
+		store.Index[hash][nodeName] -= 1
 		return nil
 	}
 	return fmt.Errorf("store: invalid operation")
 }
 
-// Read layer
-func (store *MemoryStorage) ReadLayer(layer string) (map[string]int, error) {
-	_layer, ok := store.LayersStorage[layer]
+// Read node statuses for item
+func (store *MemoryStorage) ReadIndex(hash string) (map[string]int, error) {
+	_item, ok := store.Index[hash]
 	if ok {
-		return _layer, nil
+		return _item, nil
 	}
-	return nil, fmt.Errorf("layer does not exist")
+	return nil, fmt.Errorf("item does not exist")
 }

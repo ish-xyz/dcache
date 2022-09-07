@@ -13,14 +13,14 @@ type NodeStat struct {
 type Storage interface {
 	WriteNode(node *NodeStat, force bool) error
 	ReadNode(nodeName string) (*NodeStat, error)
-	WriteLayer(layer string, nodeName string, ops string) error
-	ReadLayer(layer string) (map[string]int, error)
+	WriteIndex(hash string, nodeName string, ops string) error
+	ReadIndex(hash string) (map[string]int, error)
 }
 
 // Initialise storage for scheduler
 func NewStorage(storageType string, opts map[string]string) Storage {
 	return &MemoryStorage{
-		LayersStorage: map[string]map[string]int{},
-		Nodes:         map[string]*NodeStat{},
+		Index: map[string]map[string]int{},
+		Nodes: map[string]*NodeStat{},
 	}
 }

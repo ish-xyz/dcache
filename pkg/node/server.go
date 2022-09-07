@@ -71,10 +71,10 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 				goto runProxy
 			}
 
-			layer := path.Base(r.URL.Path)
-			nodestat, err := srv.Node.FindSource(r.Context(), layer)
+			item := path.Base(r.URL.Path)
+			nodestat, err := srv.Node.FindSource(r.Context(), item)
 			if err != nil {
-				logrus.Infoln("can't find peer able to serve layer. Falling back to upstream")
+				logrus.Infoln("can't find peer able to serve item. Falling back to upstream")
 				logrus.Debugln(err)
 				goto runProxy
 			}
