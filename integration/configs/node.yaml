@@ -1,14 +1,14 @@
 node:
-  debug: true
+  verbose: true
   name: mynode
   ipv4: 127.0.0.1
   port: 8100
-  data-dir: /var/dreg/data
+  data-dir: /var/dreg/data/
   upstream:
     address: https://ish-ar.io
     insecure: true
   proxy:
-    regex: "*blob/sha256*"
+    regex: ".*distribution.*"
   scheduler:
-    address: 127.0.0.1:8000
+    address: http://127.0.0.1:8000
   

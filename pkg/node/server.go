@@ -1,12 +1,12 @@
 package node
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"path"
 	"regexp"
 	"strings"
 
@@ -16,17 +16,17 @@ import (
 type Server struct {
 	Node     *Node           `validate:"required"`
 	Upstream *UpstreamConfig `validate:"required,dive"`
-	DataDir  string          `validate:"required,dir"`
+	DataDir  string          `validate:"required"` // Add dir validator
 	Regex    *regexp.Regexp  `validate:"required"`
 }
 
 type UpstreamConfig struct {
 	Address  string `validate:"required,url"`
-	Insecure bool   `validate:"required,boolean"`
+	Insecure bool   `validate:"required"` // add boolean validator
 }
 
 // Perform a head request to the upstream to check if the resource should be accessed
-func checkSource(client *http.Client, req *http.Request, upstream, proxyPath string) error {
+func headRequest(client *http.Client, req *http.Request, upstream, proxyPath string) (error, http.Header) {
 
 	// Prepare HEAD request
 	ctx := req.Context()
@@ -37,7 +37,7 @@ func checkSource(client *http.Client, req *http.Request, upstream, proxyPath str
 	headReq.Method = "HEAD"
 	u, err := url.Parse(httpResource)
 	if err != nil {
-		return fmt.Errorf("url parsing failed for %s", httpResource)
+		return fmt.Errorf("url parsing failed for %s", httpResource), nil
 	} else {
 		headReq.URL = u
 	}
@@ -45,16 +45,22 @@ func checkSource(client *http.Client, req *http.Request, upstream, proxyPath str
 	// Perform HEAD request
 	headResp, err := client.Do(headReq)
 	if err != nil {
-		return fmt.Errorf("error with HEAD request %v", err)
+		return fmt.Errorf("error with HEAD request %v", err), nil
 	}
 	defer headResp.Body.Close()
 
 	if headResp.StatusCode != 200 {
-		return fmt.Errorf("HEAD request status code is not 200, is: %d", headResp.StatusCode)
+		return fmt.Errorf("HEAD request status code is not 200, is: %d", headResp.StatusCode), nil
 	}
 
-	return nil
+	return nil, headResp.Header
 
+}
+
+func generateHash(url *url.URL, etag string) string {
+	id := fmt.Sprintf("%s.%s", url.String(), etag)
+	sumBytes := sha256.Sum256([]byte(id))
+	return fmt.Sprintf("%x", sumBytes)
 }
 
 // ProxyRequestHandler handles the http request using proxy
@@ -65,13 +71,16 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 
 			logrus.Debugln("regex matched for ", r.RequestURI)
 
-			err := checkSource(srv.Node.Client, r, srv.Upstream.Address, proxyPath)
+			err, headers := headRequest(srv.Node.Client, r, srv.Upstream.Address, proxyPath)
 			if err != nil {
 				logrus.Warnln("falling back to upstream, because of error:", err)
 				goto runProxy
 			}
 
-			item := path.Base(r.URL.Path)
+			item := generateHash(r.URL, headers["Etag"][0])
+
+			goto runProxy
+
 			nodestat, err := srv.Node.FindSource(r.Context(), item)
 			if err != nil {
 				logrus.Infoln("can't find peer able to serve item. Falling back to upstream")
@@ -99,7 +108,7 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 		logrus.Info("running fakeProxy")
 		proxy.ServeHTTP(w, r)
 
-		fmt.Println("post servehttp")
+		fmt.Println("post serve http")
 	}
 }
 

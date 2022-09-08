@@ -41,18 +41,30 @@ func nodeCLI() {
 	nodeCmd.PersistentFlags().BoolVarP(&nodeInsecureP, "insecure", "k", false, "Insecure connection to upstream")
 	nodeCmd.PersistentFlags().StringVarP(&nodeProxyRegex, "proxy-regex", "r", "*blob/sha256*", "Regex for the node proxy")
 	nodeCmd.PersistentFlags().StringVarP(&nodeSchedulerAddress, "scheduler-address", "s", "", "Full http url of the scheduler")
-	nodeCmd.PersistentFlags().BoolVarP(&nodeVerbose, "verbose", "v", false, "Run node in debug mode")
+	nodeCmd.PersistentFlags().BoolVarP(&nodeVerbose, "verbose", "v", false, "Run node in verbose mode")
 
-	viper.BindPFlag("node.name", schedulerCmd.PersistentFlags().Lookup("name"))
-	viper.BindPFlag("node.ipv4", schedulerCmd.PersistentFlags().Lookup("ipv4"))
-	viper.BindPFlag("node.port", schedulerCmd.PersistentFlags().Lookup("port"))
-	viper.BindPFlag("node.dataDir", schedulerCmd.PersistentFlags().Lookup("data-dir"))
-	viper.BindPFlag("node.upstream.address", schedulerCmd.PersistentFlags().Lookup("upstream"))
-	viper.BindPFlag("node.upstream.insecure", schedulerCmd.PersistentFlags().Lookup("insecure"))
-	viper.BindPFlag("node.proxy.regex", schedulerCmd.PersistentFlags().Lookup("proxy-regex"))
-	viper.BindPFlag("node.scheduler.address", schedulerCmd.PersistentFlags().Lookup("scheduler-address"))
-	viper.BindPFlag("node.debug", schedulerCmd.PersistentFlags().Lookup("debug"))
+	viper.BindPFlag("node.name", nodeCmd.PersistentFlags().Lookup("name"))
+	viper.BindPFlag("node.ipv4", nodeCmd.PersistentFlags().Lookup("ipv4"))
+	viper.BindPFlag("node.port", nodeCmd.PersistentFlags().Lookup("port"))
+	viper.BindPFlag("node.dataDir", nodeCmd.PersistentFlags().Lookup("data-dir"))
+	viper.BindPFlag("node.upstream.address", nodeCmd.PersistentFlags().Lookup("upstream"))
+	viper.BindPFlag("node.upstream.insecure", nodeCmd.PersistentFlags().Lookup("insecure"))
+	viper.BindPFlag("node.proxy.regex", nodeCmd.PersistentFlags().Lookup("proxy-regex"))
+	viper.BindPFlag("node.scheduler.address", nodeCmd.PersistentFlags().Lookup("scheduler-address"))
+	viper.BindPFlag("node.verbose", nodeCmd.PersistentFlags().Lookup("verbose"))
 
+}
+
+func setValues() {
+	nodeName = viper.Get("node.name").(string)
+	nodeIPv4 = viper.Get("node.ipv4").(string)
+	nodePort = viper.Get("node.port").(int)
+	nodeVerbose = viper.Get("node.verbose").(bool)
+	nodeDataDir = viper.Get("node.dataDir").(string)
+	nodeInsecureP = viper.Get("node.upstream.insecure").(bool)
+	nodeUpstream = viper.Get("node.upstream.address").(string)
+	nodeProxyRegex = viper.Get("node.proxy.regex").(string)
+	nodeSchedulerAddress = viper.Get("node.scheduler.address").(string)
 }
 
 func startNode(cmd *cobra.Command, args []string) {
@@ -70,6 +82,7 @@ func startNode(cmd *cobra.Command, args []string) {
 			logrus.Errorf("fatal error config file: %w", err)
 			return
 		}
+		setValues()
 	}
 
 	if nodeName == "" {
@@ -80,7 +93,6 @@ func startNode(cmd *cobra.Command, args []string) {
 	}
 
 	_node := node.NewNode(requestIDKey, nodeName, nodeIPv4, "http", nodeSchedulerAddress, nodePort)
-
 	err := validate.Struct(_node)
 	if err != nil {
 		logrus.Errorf("Error while validating user inputs or configuration file")
