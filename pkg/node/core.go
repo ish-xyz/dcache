@@ -334,6 +334,11 @@ func (no *Node) FindSource(ctx context.Context, item string) (*NodeStat, error) 
 	return nodestat, nil
 }
 
+func downloadItem(url, destination, item string) {
+	fmt.Println("download item in filepath")
+	// TODO: NotifyItem too
+}
+
 /*
 Proxy:
 
@@ -341,7 +346,7 @@ Proxy:
 - node client/core should have:
 	methods to
 		* deregister()
-		* downloadFromNode() // check that node is up and if not fallback to the upstream
+		* syncNodeInfo()
 		* garbageCollector() // spin up in separate go-routine
 - fileserver
 	trigger on incoming connections -> addConnection() & removeConnection()
