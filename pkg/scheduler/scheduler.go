@@ -12,17 +12,15 @@ import (
 var validate *validator.Validate
 
 type Scheduler struct {
-	Algo     string
-	MaxProcs int
-	Store    storage.Storage
+	Algo  string
+	Store storage.Storage
 }
 
-func NewScheduler(val *validator.Validate, store storage.Storage, maxProcs int, algo string) *Scheduler {
+func NewScheduler(val *validator.Validate, store storage.Storage, algo string) *Scheduler {
 	validate = val
 	return &Scheduler{
-		Algo:     algo, //@ish-xyz 21/08/2022 TODO: not fully implemented yet
-		MaxProcs: maxProcs,
-		Store:    store,
+		Algo:  algo, //@ish-xyz 21/08/2022 TODO: not fully implemented yet
+		Store: store,
 	}
 }
 
@@ -67,7 +65,7 @@ func (sch *Scheduler) registerNode(node *storage.NodeStat) error {
 	if err != nil {
 		return err
 	}
-	return sch.Store.WriteNode(node, false)
+	return sch.Store.WriteNode(node, true)
 }
 
 // Called by the client when the download of a given item is completed
@@ -109,21 +107,27 @@ func (sch *Scheduler) getNode(nodeName string) (*storage.NodeStat, error) {
 // if node not found, return nil
 func (sch *Scheduler) schedule(item string) (*storage.NodeStat, error) {
 
+	// Init dummy candidate
 	candidate := &storage.NodeStat{
-		Connections: sch.MaxProcs + 1,
+		Name:           "",
+		MaxConnections: 10,
+		Connections:    11,
 	}
+
 	nodes, err := sch.Store.ReadIndex(item)
 	if err != nil {
-		return candidate, nil
+		return nil, nil
 	}
 
 	for nodeName := range nodes {
+
 		node, err := sch.Store.ReadNode(nodeName)
 		if err != nil {
 			logrus.Warn("scheduling: node is not registered, skipping")
 			continue
 		}
-		if node.Connections < sch.MaxProcs && node.Connections < candidate.Connections {
+
+		if node.Connections < node.MaxConnections && node.Connections < candidate.Connections {
 			candidate = node
 		}
 		if candidate.Connections == 0 {
@@ -131,10 +135,10 @@ func (sch *Scheduler) schedule(item string) (*storage.NodeStat, error) {
 		}
 	}
 
-	// TODO: Cleanup candidate, this it's a bit ugly.. needs adjustments
-	if candidate.Connections == sch.MaxProcs+1 {
-		candidate = &storage.NodeStat{}
+	// If it's still the dummy candidate, then return nil
+	if candidate.Connections == candidate.MaxConnections+1 {
+		return nil, nil
 	}
 
-	return candidate, nil
+	return nil, nil
 }

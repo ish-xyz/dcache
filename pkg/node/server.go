@@ -27,7 +27,7 @@ type UpstreamConfig struct {
 }
 
 // Perform a head request to the upstream to check if the resource should be accessed
-func headRequest(client *http.Client, req *http.Request, upstream, proxyPath string) (error, http.Header) {
+func headRequestCheck(client *http.Client, req *http.Request, upstream, proxyPath string) (*http.Response, error) {
 
 	// Prepare HEAD request
 	ctx := req.Context()
@@ -38,23 +38,22 @@ func headRequest(client *http.Client, req *http.Request, upstream, proxyPath str
 	headReq.Method = "HEAD"
 	u, err := url.Parse(httpResource)
 	if err != nil {
-		return fmt.Errorf("url parsing failed for %s", httpResource), nil
+		return nil, fmt.Errorf("url parsing failed for %s", httpResource)
 	} else {
 		headReq.URL = u
 	}
 
-	// Perform HEAD request
 	headResp, err := client.Do(headReq)
 	if err != nil {
-		return fmt.Errorf("error with HEAD request %v", err), nil
+		return nil, fmt.Errorf("error with HEAD request %v", err)
 	}
 	defer headResp.Body.Close()
 
 	if headResp.StatusCode != 200 {
-		return fmt.Errorf("HEAD request status code is not 200, is: %d", headResp.StatusCode), nil
+		return nil, fmt.Errorf("HEAD request status code is not 200, is: %d", headResp.StatusCode)
 	}
 
-	return nil, headResp.Header
+	return headResp, nil
 
 }
 
@@ -92,60 +91,78 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 
 			logrus.Debugln("regex matched for ", r.RequestURI)
 
-			// HEAD request is necessary to see if the
-			// 		upstream allows us to download/serve certain content
-			err, headers := headRequest(srv.Node.Client, r, srv.Upstream.Address, proxyPath)
+			// HEAD request is necessary to see if the upstream allows us to download/serve certain content
+			headResp, err := headRequestCheck(srv.Node.Client, r, srv.Upstream.Address, proxyPath)
 			if err != nil {
 				logrus.Warnln("falling back to upstream, because of error:", err)
 				goto runProxy
 			}
 
-			// Scenario 1: Item is already present in the local node, check connections limit and serve if possible
-			item := generateHash(r.URL, headers["Etag"][0])
+			// Scenario 1:
+			// - item is already present in the local cache
+			// - check connections limit
+			// - serve if allowed
+			item := generateHash(r.URL, headResp.Header["Etag"][0])
 			filepath := fmt.Sprintf("%s/%s", srv.DataDir, item)
 			if _, err := os.Stat(filepath); err == nil {
-				self, err := srv.Node.Stat(r.Context())
+				selfstat, err := srv.Node.Stat(r.Context())
 				if err != nil {
 					logrus.Errorln("failed to contact scheduler to get nodestat, fallingback to upstream")
 					goto runProxy
 				}
 
-				if self.Connections < 10 {
-					//TODO: change to actual limit and move maxProx to maxConnections on the node object
-					modifyRequest(r, self, srv.DataDir, item)
+				if selfstat.Connections+1 < selfstat.MaxConnections {
+					modifyRequest(r, selfstat, srv.DataDir, item)
 					goto runFakeProxy
 				}
-
 			}
+			// Scenario 2:
+			// - ask scheduler for peer
+			// - peer found
+			// - redirect request to peer
+			// - download item locally for next requests
 
-			// Scenario 2a: ask scheduler for peer, peer found, redirect request to peer and download item locally for next requests
-			// Scenario 2b: ask scheduler for peer, peer not found, download item locally for next requests and redirect to upstream
+			// Scenario 3:
+			// - ask scheduler for peer
+			// - peer not found
+			// - download item locally for next requests
+			// - redirect to upstream
+
 			peer, err := srv.Node.FindSource(r.Context(), item)
 			if err != nil {
-				// TODO: downloadItem() from source
-				logrus.Infoln("can't find peer able to serve item. Caching for next request and falling back to upstream")
+				logrus.Warnf("unable to find peer able to serve the requested item %s.", item)
 				logrus.Debugln(err)
 				goto runProxy
+				// go downloadItem(r.URL, etag, item) from upstream
 			}
-			// TODO: downloadItem() from peer
-			// modifyRequest(r, peer, srv.DataDir, item)
 
-			fmt.Println(peer)
+			// TODO: downloadItem(peer.IPv4, etag, item) from peer
 
-			goto runProxy // TODO: Change to fake proxy
+			// A second HEAD request is necessary to see if peer can correctly serve the content
+			_, err = headRequestCheck(srv.Node.Client, r, srv.Upstream.Address, proxyPath)
+			if err != nil {
+				logrus.Warnln("peer returned error, falling back to upstream")
+				logrus.Debugln(err)
+				//TODO: notify that peer doesn't have specific item
+				goto runProxy
+			}
+			modifyRequest(r, peer, srv.DataDir, item)
 			goto runFakeProxy
 		}
 
 	runProxy:
 		logrus.Debugln("request is going to upstream")
 		proxy.ServeHTTP(w, r)
+		return
 
 	runFakeProxy:
 		logrus.Debugln("request is being cached")
 		proxy.ServeHTTP(w, r)
-
-		logrus.Debugln("notify scheduler")
 	}
+}
+
+func notify() {
+	fmt.Println("TODO")
 }
 
 func (srv *Server) Run() error {

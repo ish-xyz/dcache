@@ -2,11 +2,12 @@ package storage
 
 // Node information necessary for the scheduler
 type NodeStat struct {
-	Name        string `json:"name" validate:"required,alphanum"`
-	IPv4        string `json:"ipv4" validate:"required,ip"`
-	Connections int    `json:"connections"`
-	Port        int    `json:"port" validate:"required"`
-	Scheme      string `json:"scheme" validate:"required"`
+	Name           string `json:"name" validate:"required,alphanum"`
+	IPv4           string `json:"ipv4" validate:"required,ip"`
+	Connections    int    `json:"connections"`
+	MaxConnections int    `json:"maxConnections"`
+	Port           int    `json:"port" validate:"required"`
+	Scheme         string `json:"scheme" validate:"required"`
 }
 
 // Write() -> location,

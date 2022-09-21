@@ -57,7 +57,7 @@ func CLI() {
 
 }
 
-func mappping() {
+func mapArgs() {
 	name = viper.Get("node.name").(string)
 	ipv4 = viper.Get("node.ipv4").(string)
 	port = viper.Get("node.port").(int)
@@ -87,7 +87,7 @@ func exec(cmd *cobra.Command, args []string) {
 			logrus.Errorf("fatal error reading config file: %w", err)
 			return
 		}
-		mappping()
+		mapArgs()
 	}
 
 	if verbose {

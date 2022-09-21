@@ -36,11 +36,12 @@ type Node struct {
 }
 
 type NodeStat struct {
-	Name        string `json:"name" validate:"required,alphanum"`
-	IPv4        string `json:"ipv4" validate:"required,ip"`
-	Connections int    `json:"connections"`
-	Port        int    `json:"port" validate:"required"`
-	Scheme      string `json:"scheme" validate:"required"`
+	Name           string `json:"name" validate:"required,alphanum"`
+	IPv4           string `json:"ipv4" validate:"required,ip"`
+	Connections    int    `json:"connections"`
+	MaxConnections int    `json:"maxConnections"`
+	Port           int    `json:"port" validate:"required"`
+	Scheme         string `json:"scheme" validate:"required"`
 }
 
 func NewNode(key ContextKey, name, ipv4, scheme, scheduler string, port int) *Node {
@@ -283,11 +284,9 @@ func (no *Node) NotifyItem(ctx context.Context, item, ops string) error {
 func (no *Node) FindSource(ctx context.Context, item string) (*NodeStat, error) {
 
 	var resp Response
+	logrus.Debugln("scheduling dowload for item %s", item)
 
 	resource := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "schedule", item)
-
-	logrus.Infof("scheduling dowload for item %s", item)
-
 	headers := map[string]string{
 		"Content-Type":          "application/json",
 		string(no.RequestIDKey): ctx.Value(no.RequestIDKey).(string),
@@ -307,16 +306,11 @@ func (no *Node) FindSource(ctx context.Context, item string) (*NodeStat, error) 
 		return nil, err
 	}
 
-	if resp.Status != "success" {
+	if resp.Status != "success" || rawResp.StatusCode != 200 {
 		logrus.Debugln("error received from scheduler: %s", resp.Message)
 		return nil, err
 	}
 
-	if resp.Data["node"] == "" {
-		return nil, fmt.Errorf("no node found for item %s", item)
-	}
-
-	//TODO: find a cleaner way
 	nodestat := &NodeStat{
 		Name:        resp.Data["node"].(map[string]interface{})["name"].(string),
 		IPv4:        resp.Data["node"].(map[string]interface{})["ipv4"].(string),
@@ -325,7 +319,8 @@ func (no *Node) FindSource(ctx context.Context, item string) (*NodeStat, error) 
 		Scheme:      resp.Data["node"].(map[string]interface{})["scheme"].(string),
 	}
 
-	logrus.Infof("succcessfully found node %s", nodestat.Name)
+	logrus.Debugln("succcessfully found node %s", nodestat.Name)
+
 	return nodestat, nil
 }
 

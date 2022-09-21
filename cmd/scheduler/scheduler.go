@@ -29,13 +29,11 @@ func CLI() {
 	Cmd.PersistentFlags().StringVarP(&address, "address", "a", ":8000", "Address of the scheduler")
 	Cmd.PersistentFlags().StringVarP(&storageType, "storage-type", "s", "memory", "Backend storage for schedulers")
 	Cmd.PersistentFlags().StringVarP(&algo, "algo", "x", "LeastConnections", "Algorithm used by scheduler.")
-	Cmd.PersistentFlags().IntVarP(&maxProcs, "max-procs", "m", 10, "Max amount of concurrent connections for nodes.")
 	Cmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Run scheduler in debug mode")
 
 	viper.BindPFlag("scheduler.address", Cmd.PersistentFlags().Lookup("address"))
 	viper.BindPFlag("scheduler.storage.type", Cmd.PersistentFlags().Lookup("storage-type"))
 	viper.BindPFlag("scheduler.algo", Cmd.PersistentFlags().Lookup("algo"))
-	viper.BindPFlag("scheduler.maxProcs", Cmd.PersistentFlags().Lookup("max-procs"))
 	viper.BindPFlag("scheduler.verbose", Cmd.PersistentFlags().Lookup("verbose"))
 }
 
@@ -73,7 +71,6 @@ func exec(cmd *cobra.Command, args []string) {
 	sch := scheduler.NewScheduler(
 		validate,
 		store,
-		viper.Get("scheduler.maxProcs").(int),
 		viper.Get("scheduler.algo").(string),
 	)
 	srv := scheduler.NewServer(

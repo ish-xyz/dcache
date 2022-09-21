@@ -238,19 +238,16 @@ func (s *Server) _schedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Prepare response
 	code := 200
 	resp.Status = "success"
-	resp.Data = map[string]interface{}{
-		"node": node,
-	}
-
-	if node.Name == "" {
+	resp.Data = map[string]interface{}{"node": node}
+	if node == nil {
 		code = 404
 		resp.Status = "success"
-		resp.Data = map[string]interface{}{
-			"node": "",
-		}
+		resp.Data = map[string]interface{}{"node": ""}
 	}
+
 	_apiResponse(w, r, code, resp)
 }
 

@@ -6,8 +6,8 @@ import (
 )
 
 type MemoryStorage struct {
-	Index map[string]map[string]int
-	Nodes map[string]*NodeStat
+	Index map[string]map[string]int //item -> $nodeName -> connections
+	Nodes map[string]*NodeStat      //$nodeName -> $nodeStat
 }
 
 var lock = sync.RWMutex{}
