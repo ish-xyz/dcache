@@ -1,37 +1,33 @@
 version: "3.9"
 services:
   node1:
-    image: local-dreg:latest
+    image: dreg:latest
     ports:
       - "8101:8100"
+    entrypoint: /bin/sh
     command:
-    - node
     - -c
-    - /mnt/node.yaml
-    - --name 
-    - node1
+    - /dreg node -c /mnt/node.yaml -i $$(hostname -i) -n $$(hostname) -v
     volumes:
       - ./configs:/mnt
     networks:
     - dreg
 
   node2:
-    image: local-dreg:latest
+    image: dreg:latest
     ports:
       - "8102:8100"
+    entrypoint: /bin/sh
     command:
-    - node
     - -c
-    - /mnt/node.yaml
-    - --name
-    - node2
+    - /dreg node -c /mnt/node.yaml -i $$(hostname -i) -n $$(hostname) -v
     volumes:
       - ./configs:/mnt
     networks:
     - dreg
 
   scheduler:
-    image: local-dreg:latest
+    image: dreg:latest
     ports:
       - "8000:8000"
     command:

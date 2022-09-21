@@ -1,0 +1,7 @@
+scheduler:
+  address: "0.0.0.0:8000"
+  maxProcs: 10
+  algo: leastConnections
+  storage:
+    type: memory
+  verbose: true

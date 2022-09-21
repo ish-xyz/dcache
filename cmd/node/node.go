@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"regexp"
 	"time"
@@ -102,6 +103,7 @@ func exec(cmd *cobra.Command, args []string) {
 
 	validate := validator.New()
 	nodeObj := node.NewNode(requestIDKey, name, ipv4, "http", schedulerAddress, port)
+	fmt.Printf("%+v", nodeObj)
 	err := validate.Struct(nodeObj)
 	if err != nil {
 		logrus.Errorf("Error while validating user inputs or configuration file")
