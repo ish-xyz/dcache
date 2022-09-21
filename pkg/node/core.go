@@ -83,14 +83,14 @@ func (no *Node) Register() error {
 		return err
 	}
 
-	logrus.Infoln("registering node: ", resource)
+	logrus.Debugln("registering node to: ", resource)
 	logrus.Debugln("sending data %s", string(payload))
 
 	headers := map[string]string{"Content-Type": "application/json"}
 
 	rawResp, err := no.Request("POST", resource, headers, payload)
 	if err != nil {
-		logrus.Warnf("error requesting resource: %s", resource)
+		logrus.Debugln("error requesting resource: %s", resource)
 		return err
 	}
 	defer rawResp.Body.Close()
@@ -102,7 +102,7 @@ func (no *Node) Register() error {
 	}
 
 	if resp.Status != "success" {
-		logrus.Warnf("error received from scheduler while registering: %s", resp.Message)
+		logrus.Debugln("error received from scheduler while registering: %s", resp.Message)
 		return fmt.Errorf(resp.Message)
 	}
 
@@ -127,7 +127,7 @@ func (no *Node) AddConnection(ctx context.Context) error {
 
 	rawResp, err := no.Request("PUT", resource, headers, nil)
 	if err != nil {
-		logrus.Warnf("error requesting resource: %s", resource)
+		logrus.Debugln("error requesting resource: %s", resource)
 		return err
 	}
 	defer rawResp.Body.Close()
@@ -135,12 +135,12 @@ func (no *Node) AddConnection(ctx context.Context) error {
 	body, _ := ioutil.ReadAll(rawResp.Body)
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		logrus.Warnln("error decoding payload:", err)
+		logrus.Debugln("error decoding payload:", err)
 		return err
 	}
 
 	if resp.Status != "success" {
-		logrus.Warnf("error received from scheduler: %s", resp.Message)
+		logrus.Debugln("error received from scheduler: %s", resp.Message)
 		return fmt.Errorf(resp.Message)
 	}
 
@@ -164,7 +164,7 @@ func (no *Node) RemoveConnection(ctx context.Context) error {
 
 	rawResp, err := no.Request("PUT", resource, headers, nil)
 	if err != nil {
-		logrus.Warnf("error requesting resource: %s", resource)
+		logrus.Debugln("error requesting resource: %s", resource)
 		return err
 	}
 	defer rawResp.Body.Close()
@@ -172,12 +172,12 @@ func (no *Node) RemoveConnection(ctx context.Context) error {
 	body, _ := ioutil.ReadAll(rawResp.Body)
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		logrus.Warnln("error decoding payload:", err)
+		logrus.Debugln("error decoding payload:", err)
 		return err
 	}
 
 	if resp.Status != "success" {
-		logrus.Warnf("error received from scheduler: %s", resp.Message)
+		logrus.Debugln("error received from scheduler: %s", resp.Message)
 		return fmt.Errorf(resp.Message)
 	}
 
@@ -201,7 +201,7 @@ func (no *Node) Stat(ctx context.Context) (*NodeStat, error) {
 
 	rawResp, err := no.Request("GET", resource, headers, nil)
 	if err != nil {
-		logrus.Warnf("error requesting resource: %s", resource)
+		logrus.Debugln("error requesting resource: %s", resource)
 		return nil, err
 	}
 	defer rawResp.Body.Close()
@@ -214,7 +214,7 @@ func (no *Node) Stat(ctx context.Context) (*NodeStat, error) {
 	}
 
 	if resp.Status != "success" {
-		logrus.Warnf("error received from scheduler: %s", resp.Message)
+		logrus.Debugln("error received from scheduler: %s", resp.Message)
 		return nil, err
 	}
 
@@ -258,7 +258,7 @@ func (no *Node) NotifyItem(ctx context.Context, item, ops string) error {
 
 	rawResp, err := no.Request(method, resource, headers, nil)
 	if err != nil {
-		logrus.Warnf("error requesting resource: %s", resource)
+		logrus.Debugln("error requesting resource: %s", resource)
 		return err
 	}
 	defer rawResp.Body.Close()
@@ -266,12 +266,12 @@ func (no *Node) NotifyItem(ctx context.Context, item, ops string) error {
 	body, _ := ioutil.ReadAll(rawResp.Body)
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		logrus.Warnln("error decoding payload:", err)
+		logrus.Debugln("error decoding payload:", err)
 		return err
 	}
 
 	if resp.Status != "success" {
-		logrus.Warnf("error received from scheduler: %s", resp.Message)
+		logrus.Debugln("error received from scheduler: %s", resp.Message)
 		return err
 	}
 
@@ -295,7 +295,7 @@ func (no *Node) FindSource(ctx context.Context, item string) (*NodeStat, error) 
 
 	rawResp, err := no.Request("GET", resource, headers, nil)
 	if err != nil {
-		logrus.Warnf("error requesting resource: %s", resource)
+		logrus.Debugln("error requesting resource: %s", resource)
 		return nil, err
 	}
 	defer rawResp.Body.Close()
@@ -303,12 +303,12 @@ func (no *Node) FindSource(ctx context.Context, item string) (*NodeStat, error) 
 	body, _ := ioutil.ReadAll(rawResp.Body)
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		logrus.Warnln("error decoding payload:", err)
+		logrus.Debugln("error decoding payload:", err)
 		return nil, err
 	}
 
 	if resp.Status != "success" {
-		logrus.Warnf("error received from scheduler: %s", resp.Message)
+		logrus.Debugln("error received from scheduler: %s", resp.Message)
 		return nil, err
 	}
 

@@ -23,7 +23,7 @@ services:
     - node
     - -c
     - /mnt/node.yaml
-    - --name 
+    - --name
     - node2
     volumes:
       - ./configs:/mnt

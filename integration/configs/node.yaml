@@ -1,5 +1,5 @@
 node:
-  verbose: true
+  verbose: false
   ipv4: 0.0.0.0
   port: 8100
   data-dir: /var/dreg/data/

@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 	"regexp"
+	"time"
 
 	"github.com/go-playground/validator"
 	"github.com/ish-xyz/dreg/pkg/node"
@@ -71,6 +72,7 @@ func registerNode(nodeObj *node.Node) {
 	logrus.Info("registering node... (will retry forever)")
 	for !node.Registered {
 		nodeObj.Register()
+		time.Sleep(time.Duration(2) * time.Second)
 	}
 	logrus.Info("registration completed.")
 }
