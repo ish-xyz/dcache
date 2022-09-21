@@ -324,11 +324,6 @@ func (no *Node) FindSource(ctx context.Context, item string) (*NodeStat, error) 
 	return nodestat, nil
 }
 
-func downloadItem(url, destination, item string) {
-	fmt.Println("download item in filepath")
-	// TODO: NotifyItem too
-}
-
 /*
 Proxy:
 
