@@ -1,6 +1,47 @@
 version: "3.9"
 services:
-  node:
-    build: .
+  node1:
+    image: local-dreg:latest
     ports:
-      - "8100:8100"
+      - "8101:8100"
+    command:
+    - node
+    - -c
+    - /mnt/node.yaml
+    - --name 
+    - node1
+    volumes:
+      - ./configs:/mnt
+    networks:
+    - dreg
+
+  node2:
+    image: local-dreg:latest
+    ports:
+      - "8102:8100"
+    command:
+    - node
+    - -c
+    - /mnt/node.yaml
+    - --name 
+    - node2
+    volumes:
+      - ./configs:/mnt
+    networks:
+    - dreg
+
+  scheduler:
+    image: local-dreg:latest
+    ports:
+      - "8000:8000"
+    command:
+    - scheduler
+    - -c
+    - /mnt/scheduler.yaml
+    volumes:
+      - ./configs:/mnt
+    networks:
+    - dreg
+
+networks:
+  dreg: {}

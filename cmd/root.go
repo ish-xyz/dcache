@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 
+	schedulercmd "github.com/ish-xyz/dreg/cmd/scheduler"
 	"github.com/spf13/cobra"
 )
 
@@ -23,7 +24,7 @@ var (
 func init() {
 	rootCmd.AddCommand(schedulerCmd)
 	rootCmd.AddCommand(nodeCmd)
-	schedulerCLI()
+	schedulercmd.CLI()
 	nodeCLI()
 }
 

@@ -60,6 +60,7 @@ func headRequest(client *http.Client, req *http.Request, upstream, proxyPath str
 
 // Generate item hash
 // TODO: Hashing is not really the best solution here, encoding or smth else might be better
+// not going with b64 as indexes would become damn long
 func generateHash(url *url.URL, etag string) string {
 	id := fmt.Sprintf("%s.%s", url.String(), etag)
 	sumBytes := sha256.Sum256([]byte(id))
@@ -91,6 +92,8 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 
 			logrus.Debugln("regex matched for ", r.RequestURI)
 
+			// HEAD request is necessary to see if the
+			// 		upstream allows us to download/serve certain content
 			err, headers := headRequest(srv.Node.Client, r, srv.Upstream.Address, proxyPath)
 			if err != nil {
 				logrus.Warnln("falling back to upstream, because of error:", err)
@@ -107,13 +110,15 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 					goto runProxy
 				}
 
-				// TODO: check node max connections
-				modifyRequest(r, self, srv.DataDir, item)
-				goto runFakeProxy
+				if self.Connections < 10 {
+					//TODO: change to actual limit and move maxProx to maxConnections on the node object
+					modifyRequest(r, self, srv.DataDir, item)
+					goto runFakeProxy
+				}
 
 			}
 
-			// Scenario 2a: ask scheduler for peer, redirect request to peer and download item locally for next requests
+			// Scenario 2a: ask scheduler for peer, peer found, redirect request to peer and download item locally for next requests
 			// Scenario 2b: ask scheduler for peer, peer not found, download item locally for next requests and redirect to upstream
 			peer, err := srv.Node.FindSource(r.Context(), item)
 			if err != nil {
@@ -139,7 +144,7 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 		logrus.Debugln("request is being cached")
 		proxy.ServeHTTP(w, r)
 
-		logrus.Debugln("register to scheduler")
+		logrus.Debugln("notify scheduler")
 	}
 }
 

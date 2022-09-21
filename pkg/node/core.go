@@ -66,7 +66,7 @@ func (no *Node) Request(method string, resource string, headers map[string]strin
 	return no.Client.Do(req)
 }
 
-func (no *Node) Register(ctx context.Context) error {
+func (no *Node) Register() error {
 
 	var resp Response
 
@@ -86,12 +86,7 @@ func (no *Node) Register(ctx context.Context) error {
 	logrus.Infoln("registering node: ", resource)
 	logrus.Debugln("sending data %s", string(payload))
 
-	fmt.Println(ctx.Value(no.RequestIDKey).(string))
-
-	headers := map[string]string{
-		"Content-Type":          "application/json",
-		string(no.RequestIDKey): ctx.Value(no.RequestIDKey).(string),
-	}
+	headers := map[string]string{"Content-Type": "application/json"}
 
 	rawResp, err := no.Request("POST", resource, headers, payload)
 	if err != nil {

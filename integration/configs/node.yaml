@@ -1,7 +1,7 @@
 node:
   verbose: true
   name: mynode
-  ipv4: 127.0.0.1
+  ipv4: 0.0.0.0
   port: 8100
   data-dir: /var/dreg/data/
   upstream:
@@ -10,5 +10,5 @@ node:
   proxy:
     regex: ".*distribution.*"
   scheduler:
-    address: http://127.0.0.1:8000
+    address: http://scheduler:8000
   
