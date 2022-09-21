@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 
+	nodecmd "github.com/ish-xyz/dreg/cmd/node"
 	schedulercmd "github.com/ish-xyz/dreg/cmd/scheduler"
 	"github.com/spf13/cobra"
 )
@@ -22,10 +23,10 @@ var (
 )
 
 func init() {
-	rootCmd.AddCommand(schedulerCmd)
-	rootCmd.AddCommand(nodeCmd)
+	rootCmd.AddCommand(schedulercmd.Cmd)
+	rootCmd.AddCommand(nodecmd.Cmd)
 	schedulercmd.CLI()
-	nodeCLI()
+	nodecmd.CLI()
 }
 
 func Execute() error {
