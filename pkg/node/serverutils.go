@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 )
 
-func downloadItem(filepath string, url string) error {
+func downloadItem(client *http.Client, filepath string, url string) error {
 
 	// head request
+
 	// calculate hash
 	// check if item hash is equal to retrieved hash
 
@@ -71,23 +71,9 @@ func modifyRequest(r *http.Request, nodestat *NodeStat, dataDir, item string) er
 }
 
 // Perform a head request to the upstream to check if the resource should be accessed
-func headRequestCheck(client *http.Client, req *http.Request, upstream, proxyPath string) (*http.Response, error) {
+func headRequestCheck(client *http.Client, req *http.Request) (*http.Response, error) {
 
-	// Prepare HEAD request
-	ctx := req.Context()
-	headReq := req.Clone(ctx)
-	httpResource := fmt.Sprintf("%s%s", upstream, strings.TrimPrefix(req.RequestURI, proxyPath))
-	headReq.Host = strings.Split(upstream, "://")[1]
-	headReq.RequestURI = "" // it's illegal to have RequestURI predefined
-	headReq.Method = "HEAD"
-	u, err := url.Parse(httpResource)
-	if err != nil {
-		return nil, fmt.Errorf("url parsing failed for %s", httpResource)
-	} else {
-		headReq.URL = u
-	}
-
-	headResp, err := client.Do(headReq)
+	headResp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error with HEAD request %v", err)
 	}

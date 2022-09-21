@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 )
@@ -32,8 +33,22 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 
 			logrus.Debugln("regex matched for ", r.RequestURI)
 
+			// Prepare HEAD request
+			headReq := r.Clone(r.Context())
+			headReqURL := fmt.Sprintf("%s%s", srv.Upstream.Address, strings.TrimPrefix(r.RequestURI, proxyPath))
+			headReq.Host = strings.Split(srv.Upstream.Address, "://")[1]
+			headReq.RequestURI = "" // it's illegal to have RequestURI predefined
+			headReq.Method = "HEAD"
+			u, err := url.Parse(headReqURL)
+			if err != nil {
+				logrus.Errorln("Error parsing http resource for head request:", err)
+				goto runProxy
+			} else {
+				headReq.URL = u
+			}
+
 			// HEAD request is necessary to see if the upstream allows us to download/serve certain content
-			headResp, err := headRequestCheck(srv.Node.Client, r, srv.Upstream.Address, proxyPath)
+			headResp, err := headRequestCheck(srv.Node.Client, r)
 			if err != nil {
 				logrus.Warnln("falling back to upstream, because of error:", err)
 				goto runProxy
@@ -79,8 +94,8 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 
 			// TODO: go downloadItem(peer.IPv4, etag, item) from peer
 
-			// A second HEAD request is necessary to see if peer can correctly serve the content
-			_, err = headRequestCheck(srv.Node.Client, r, srv.Upstream.Address, proxyPath)
+			// TODO: A second HEAD request is necessary to see if peer can correctly serve the content
+
 			if err != nil {
 				logrus.Warnln("peer returned error, falling back to upstream")
 				logrus.Debugln(err)
