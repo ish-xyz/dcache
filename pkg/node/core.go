@@ -40,7 +40,7 @@ type NodeInfo struct {
 	Name           string `json:"name" validate:"required,alphanum"`
 	IPv4           string `json:"ipv4" validate:"required,ip"`
 	Connections    int    `json:"connections"`
-	MaxConnections int    `json:"maxConnections"`
+	MaxConnections int    `json:"maxConnections" validate:"required,number"`
 	Port           int    `json:"port" validate:"required"`
 	Scheme         string `json:"scheme" validate:"required"`
 }
@@ -225,11 +225,12 @@ func (no *Node) Info(ctx context.Context) (*NodeInfo, error) {
 
 	//TODO: find a cleaner way
 	nodeInfo := &NodeInfo{
-		Name:        resp.Data["node"].(map[string]interface{})["name"].(string),
-		IPv4:        resp.Data["node"].(map[string]interface{})["ipv4"].(string),
-		Port:        int(resp.Data["node"].(map[string]interface{})["port"].(float64)),
-		Connections: int(resp.Data["node"].(map[string]interface{})["connections"].(float64)),
-		Scheme:      resp.Data["node"].(map[string]interface{})["scheme"].(string),
+		Name:           resp.Data["node"].(map[string]interface{})["name"].(string),
+		IPv4:           resp.Data["node"].(map[string]interface{})["ipv4"].(string),
+		Port:           int(resp.Data["node"].(map[string]interface{})["port"].(float64)),
+		Connections:    int(resp.Data["node"].(map[string]interface{})["connections"].(float64)),
+		MaxConnections: int(resp.Data["node"].(map[string]interface{})["maxConnections"].(float64)),
+		Scheme:         resp.Data["node"].(map[string]interface{})["scheme"].(string),
 	}
 
 	return nodeInfo, nil
