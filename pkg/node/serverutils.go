@@ -17,13 +17,13 @@ func generateHash(url *url.URL, etag string) string {
 }
 
 // Helper function to set the peer as server
-func redirectRequestToPeer(r *http.Request, target *NodeStat, parentPath, item string) error {
+func redirectRequestToPeer(r *http.Request, target *NodeStat, path string) error {
 
 	r.URL.Scheme = target.Scheme
-	r.URL.Host = target.IPv4
-	r.Host = target.IPv4
-	r.URL.Path = fmt.Sprintf("/%s/%s", parentPath, item)
-	r.RequestURI = fmt.Sprintf("/%s/%s", parentPath, item)
+	r.URL.Host = fmt.Sprintf("%s:%d", target.IPv4, target.Port)
+	r.Host = fmt.Sprintf("%s:%d", target.IPv4, target.Port)
+	r.URL.Path = path
+	r.RequestURI = path
 
 	if _, ok := r.Header["User-Agent"]; !ok {
 		// explicitly disable User-Agent so it's not set to default value
