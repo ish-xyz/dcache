@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"github.com/go-playground/validator"
+	"github.com/ish-xyz/dpc/pkg/node"
 	"github.com/ish-xyz/dpc/pkg/scheduler/storage"
 	"github.com/sirupsen/logrus"
 )
@@ -59,7 +60,7 @@ func (sch *Scheduler) setNodeConnections(nodeName string, conns int) error {
 }
 
 // Add node to list of nodes
-func (sch *Scheduler) registerNode(node *storage.NodeStat) error {
+func (sch *Scheduler) registerNode(node *node.NodeInfo) error {
 
 	err := validate.Struct(node)
 	if err != nil {
@@ -91,8 +92,8 @@ func (sch *Scheduler) removeNodeForItem(item, nodeName string, force bool) error
 	return nil
 }
 
-// Get nodeStat from storage
-func (sch *Scheduler) getNode(nodeName string) (*storage.NodeStat, error) {
+// Get nodeInfo from storage
+func (sch *Scheduler) getNode(nodeName string) (*node.NodeInfo, error) {
 
 	node, err := sch.Store.ReadNode(nodeName)
 	if err != nil {
@@ -105,10 +106,10 @@ func (sch *Scheduler) getNode(nodeName string) (*storage.NodeStat, error) {
 // Look for all the nodes that have a specific item,
 // then look for the node that has the least connection
 // if node not found, return nil
-func (sch *Scheduler) schedule(item string) (*storage.NodeStat, error) {
+func (sch *Scheduler) schedule(item string) (*node.NodeInfo, error) {
 
 	// Init dummy candidate
-	candidate := &storage.NodeStat{
+	candidate := &node.NodeInfo{
 		Name:           "",
 		MaxConnections: 10,
 		Connections:    11,

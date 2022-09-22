@@ -11,13 +11,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var (
-	Registered bool
-	apiVersion = "v1"
-)
-
 // needed cause context doesn't accept primitive types as key
 type ContextKey string
+
+var (
+	Registered   bool
+	RequestIDKey ContextKey = "X-Request-Id"
+	apiVersion              = "v1"
+)
 
 type Response struct {
 	Status  string                 `json:"status"`
@@ -26,16 +27,16 @@ type Response struct {
 }
 
 type Node struct {
-	RequestIDKey     ContextKey   `validate:"required"`
 	Name             string       `validate:"required,alphanum"`
 	IPv4             string       `validate:"required,ipv4"`
 	SchedulerAddress string       `validate:"required,url"`
 	Port             int          `validate:"required,number"`
 	Client           *http.Client `validate:"required"`
 	Scheme           string       `validate:"required"`
+	MaxConnections   int          `validate:"required,number"`
 }
 
-type NodeStat struct {
+type NodeInfo struct {
 	Name           string `json:"name" validate:"required,alphanum"`
 	IPv4           string `json:"ipv4" validate:"required,ip"`
 	Connections    int    `json:"connections"`
@@ -44,15 +45,15 @@ type NodeStat struct {
 	Scheme         string `json:"scheme" validate:"required"`
 }
 
-func NewNode(key ContextKey, name, ipv4, scheme, scheduler string, port int) *Node {
+func NewNode(name, ipv4, scheme, scheduler string, port, maxConnections int) *Node {
 	return &Node{
-		RequestIDKey:     key,
 		Name:             name,
 		IPv4:             ipv4,
 		SchedulerAddress: scheduler,
 		Port:             port,
 		Client:           &http.Client{},
 		Scheme:           scheme,
+		MaxConnections:   maxConnections,
 	}
 }
 
@@ -72,14 +73,15 @@ func (no *Node) Register() error {
 	var resp Response
 
 	resource := fmt.Sprintf("%s/%s/%s", no.SchedulerAddress, apiVersion, "registerNode")
-	nodestat := &NodeStat{
-		Name:        no.Name,
-		IPv4:        no.IPv4,
-		Port:        no.Port,
-		Scheme:      no.Scheme,
-		Connections: 0,
+	nodeInfo := &NodeInfo{
+		Name:           no.Name,
+		IPv4:           no.IPv4,
+		Port:           no.Port,
+		Scheme:         no.Scheme,
+		Connections:    0,
+		MaxConnections: no.MaxConnections,
 	}
-	payload, err := json.Marshal(nodestat)
+	payload, err := json.Marshal(nodeInfo)
 	if err != nil {
 		return err
 	}
@@ -122,8 +124,8 @@ func (no *Node) AddConnection(ctx context.Context) error {
 	logrus.Infoln("adding 1 connection")
 
 	headers := map[string]string{
-		"Content-Type":          "application/json",
-		string(no.RequestIDKey): ctx.Value(no.RequestIDKey).(string),
+		"Content-Type":       "application/json",
+		string(RequestIDKey): ctx.Value(RequestIDKey).(string),
 	}
 
 	rawResp, err := no.Request("PUT", resource, headers, nil)
@@ -159,8 +161,8 @@ func (no *Node) RemoveConnection(ctx context.Context) error {
 	logrus.Infoln("removing 1 connection")
 
 	headers := map[string]string{
-		"Content-Type":          "application/json",
-		string(no.RequestIDKey): ctx.Value(no.RequestIDKey).(string),
+		"Content-Type":       "application/json",
+		string(RequestIDKey): ctx.Value(RequestIDKey).(string),
 	}
 
 	rawResp, err := no.Request("PUT", resource, headers, nil)
@@ -187,17 +189,17 @@ func (no *Node) RemoveConnection(ctx context.Context) error {
 }
 
 // returns a map[string]interface{} with the node stat from the scheduler storage
-func (no *Node) Stat(ctx context.Context) (*NodeStat, error) {
+func (no *Node) Info(ctx context.Context) (*NodeInfo, error) {
 
 	var resp Response
 
 	resource := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "getNode", no.Name)
 
-	logrus.Infoln("getting nodeStat information")
+	logrus.Infoln("getting node information")
 
 	headers := map[string]string{
-		"Content-Type":          "application/json",
-		string(no.RequestIDKey): ctx.Value(no.RequestIDKey).(string),
+		"Content-Type":       "application/json",
+		string(RequestIDKey): ctx.Value(RequestIDKey).(string),
 	}
 
 	rawResp, err := no.Request("GET", resource, headers, nil)
@@ -219,18 +221,18 @@ func (no *Node) Stat(ctx context.Context) (*NodeStat, error) {
 		return nil, err
 	}
 
-	logrus.Infoln("connection added successfully")
+	logrus.Debugln("retrieved data:", resp.Data["node"].(map[string]interface{}))
 
 	//TODO: find a cleaner way
-	nodestat := &NodeStat{
+	nodeInfo := &NodeInfo{
 		Name:        resp.Data["node"].(map[string]interface{})["name"].(string),
 		IPv4:        resp.Data["node"].(map[string]interface{})["ipv4"].(string),
-		Port:        resp.Data["node"].(map[string]interface{})["port"].(int),
-		Connections: resp.Data["node"].(map[string]interface{})["connections"].(int),
+		Port:        int(resp.Data["node"].(map[string]interface{})["port"].(float64)),
+		Connections: int(resp.Data["node"].(map[string]interface{})["connections"].(float64)),
 		Scheme:      resp.Data["node"].(map[string]interface{})["scheme"].(string),
 	}
 
-	return nodestat, nil
+	return nodeInfo, nil
 }
 
 // Notify scheduler that the current node has an item
@@ -253,8 +255,8 @@ func (no *Node) NotifyItem(ctx context.Context, item, ops string) error {
 	logrus.Infof("notifying removal of item %s", item)
 
 	headers := map[string]string{
-		"Content-Type":          "application/json",
-		string(no.RequestIDKey): ctx.Value(no.RequestIDKey).(string),
+		"Content-Type":       "application/json",
+		string(RequestIDKey): ctx.Value(RequestIDKey).(string),
 	}
 
 	rawResp, err := no.Request(method, resource, headers, nil)
@@ -281,15 +283,15 @@ func (no *Node) NotifyItem(ctx context.Context, item, ops string) error {
 }
 
 // Ask the scheduler to find a node to download the item
-func (no *Node) FindSource(ctx context.Context, item string) (*NodeStat, error) {
+func (no *Node) FindSource(ctx context.Context, item string) (*NodeInfo, error) {
 
 	var resp Response
 	logrus.Debugln("scheduling dowload for item %s", item)
 
 	resource := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "schedule", item)
 	headers := map[string]string{
-		"Content-Type":          "application/json",
-		string(no.RequestIDKey): ctx.Value(no.RequestIDKey).(string),
+		"Content-Type":       "application/json",
+		string(RequestIDKey): ctx.Value(RequestIDKey).(string),
 	}
 
 	rawResp, err := no.Request("GET", resource, headers, nil)
@@ -311,7 +313,7 @@ func (no *Node) FindSource(ctx context.Context, item string) (*NodeStat, error) 
 		return nil, err
 	}
 
-	nodestat := &NodeStat{
+	nodeInfo := &NodeInfo{
 		Name:        resp.Data["node"].(map[string]interface{})["name"].(string),
 		IPv4:        resp.Data["node"].(map[string]interface{})["ipv4"].(string),
 		Port:        resp.Data["node"].(map[string]interface{})["port"].(int),
@@ -319,7 +321,7 @@ func (no *Node) FindSource(ctx context.Context, item string) (*NodeStat, error) 
 		Scheme:      resp.Data["node"].(map[string]interface{})["scheme"].(string),
 	}
 
-	logrus.Debugln("succcessfully found node %s", nodestat.Name)
+	logrus.Debugln("succcessfully found node %s", nodeInfo.Name)
 
-	return nodestat, nil
+	return nodeInfo, nil
 }

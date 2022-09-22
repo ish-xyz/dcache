@@ -1,6 +1,7 @@
 package node
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -29,7 +30,11 @@ type UpstreamConfig struct {
 func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, proxyPath string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 
+		requestID := generateRequestID()
+
 		if srv.Regex.MatchString(r.RequestURI) && r.Method == "GET" {
+
+			ctx := context.WithValue(r.Context(), RequestIDKey, requestID)
 
 			logrus.Debugln("regex matched for ", r.RequestURI)
 
@@ -56,17 +61,19 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 			fileServerPath := fmt.Sprintf("/fs/%s", item)
 
 			if _, err := os.Stat(filePathOS); err == nil {
-				selfstat, err := srv.Node.Stat(r.Context())
+				selfInfo, err := srv.Node.Info(ctx)
 				if err != nil {
-					logrus.Errorln("failed to contact scheduler to get nodestat, fallingback to upstream")
+					logrus.Errorln("failed to contact scheduler to get node info, fallingback to upstream")
 					goto runProxy
 				}
 
-				if selfstat.Connections+1 >= selfstat.MaxConnections {
+				logrus.Debugln("retrieved node info", selfInfo)
+
+				if selfInfo.Connections+1 >= selfInfo.MaxConnections {
 					logrus.Warnln("Max connections for peer already reached")
 					goto runProxy
 				} else {
-					redirectRequestToPeer(r, selfstat, fileServerPath)
+					redirectRequestToPeer(r, selfInfo, fileServerPath)
 					goto runFakeProxy
 				}
 			} else {

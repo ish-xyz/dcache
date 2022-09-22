@@ -5,7 +5,14 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+
+	"github.com/google/uuid"
 )
+
+func generateRequestID() string {
+	id := uuid.New()
+	return id.String()
+}
 
 // Generate item hash
 // TODO: Hashing is not really the best solution here, encoding or smth else might be better.
@@ -17,7 +24,7 @@ func generateHash(url *url.URL, etag string) string {
 }
 
 // Helper function to set the peer as server
-func redirectRequestToPeer(r *http.Request, target *NodeStat, path string) error {
+func redirectRequestToPeer(r *http.Request, target *NodeInfo, path string) error {
 
 	r.URL.Scheme = target.Scheme
 	r.URL.Host = fmt.Sprintf("%s:%d", target.IPv4, target.Port)

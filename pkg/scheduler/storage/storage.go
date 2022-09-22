@@ -1,19 +1,11 @@
 package storage
 
-// Node information necessary for the scheduler
-type NodeStat struct {
-	Name           string `json:"name" validate:"required,alphanum"`
-	IPv4           string `json:"ipv4" validate:"required,ip"`
-	Connections    int    `json:"connections"`
-	MaxConnections int    `json:"maxConnections"`
-	Port           int    `json:"port" validate:"required"`
-	Scheme         string `json:"scheme" validate:"required"`
-}
+import "github.com/ish-xyz/dpc/pkg/node"
 
 // Write() -> location,
 type Storage interface {
-	WriteNode(node *NodeStat, force bool) error
-	ReadNode(nodeName string) (*NodeStat, error)
+	WriteNode(node *node.NodeInfo, force bool) error
+	ReadNode(nodeName string) (*node.NodeInfo, error)
 	WriteIndex(hash string, nodeName string, ops string) error
 	ReadIndex(hash string) (map[string]int, error)
 }
@@ -22,6 +14,6 @@ type Storage interface {
 func NewStorage(storageType string, opts map[string]string) Storage {
 	return &MemoryStorage{
 		Index: map[string]map[string]int{},
-		Nodes: map[string]*NodeStat{},
+		Nodes: map[string]*node.NodeInfo{},
 	}
 }
