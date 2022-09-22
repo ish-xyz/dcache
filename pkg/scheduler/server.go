@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"github.com/ish-xyz/dreg/pkg/scheduler/storage"
+	"github.com/ish-xyz/dpc/pkg/scheduler/storage"
 	"github.com/sirupsen/logrus"
 )
 

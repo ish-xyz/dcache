@@ -1,4 +1,4 @@
-module github.com/ish-xyz/dreg
+module github.com/ish-xyz/dpc
 
 go 1.17
 

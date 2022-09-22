@@ -1,6 +1,6 @@
 package main
 
-import "github.com/ish-xyz/dreg/cmd"
+import "github.com/ish-xyz/dpc/cmd"
 
 func main() {
 	cmd.Execute()

@@ -1,7 +1,7 @@
 node:
   verbose: false
   port: 8100
-  dataDir: /var/dreg/data/
+  dataDir: /var/dpc/data/
   upstream:
     address: https://ish-ar.io
     insecure: true

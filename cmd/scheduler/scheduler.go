@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"github.com/go-playground/validator"
-	"github.com/ish-xyz/dreg/pkg/scheduler"
-	"github.com/ish-xyz/dreg/pkg/scheduler/storage"
+	"github.com/ish-xyz/dpc/pkg/scheduler"
+	"github.com/ish-xyz/dpc/pkg/scheduler/storage"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -19,7 +19,7 @@ var (
 
 	Cmd = &cobra.Command{
 		Use:   "scheduler",
-		Short: "Run dreg scheduler",
+		Short: "Run dpc scheduler",
 		Run:   exec,
 	}
 )

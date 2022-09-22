@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/go-playground/validator"
-	"github.com/ish-xyz/dreg/pkg/node"
+	"github.com/ish-xyz/dpc/pkg/node"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -28,7 +28,7 @@ var (
 
 	Cmd = &cobra.Command{
 		Use:   "node",
-		Short: "Run dreg node",
+		Short: "Run dpc node",
 		Run:   exec,
 	}
 )
@@ -38,7 +38,7 @@ func CLI() {
 	Cmd.PersistentFlags().StringVarP(&name, "name", "n", "", "Name of the node, defaults to hostname")
 	Cmd.PersistentFlags().StringVarP(&ipv4, "ipv4", "i", "", "IPV4 address of the node, that gets advertised to the scheduler")
 	Cmd.PersistentFlags().IntVarP(&port, "port", "p", 8100, "Port of the node, that gets advertised to the scheduler")
-	Cmd.PersistentFlags().StringVarP(&dataDir, "data-dir", "d", "/var/dreg/data", "Path to the data dir")
+	Cmd.PersistentFlags().StringVarP(&dataDir, "data-dir", "d", "/var/dpc/data", "Path to the data dir")
 	Cmd.PersistentFlags().StringVarP(&upstream, "upstream", "u", "", "URL of the upstream registry")
 	Cmd.PersistentFlags().BoolVarP(&insecure, "insecure", "k", false, "Insecure connection to upstream")
 	Cmd.PersistentFlags().StringVarP(&proxyRegex, "proxy-regex", "r", "*blob/sha256*", "Regex for the node proxy")
