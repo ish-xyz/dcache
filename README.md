@@ -1,5 +1,3 @@
-Distributed Cache for container registries
+Distributed P2P Cache for HTTP fileservers
 
-DREG aims to improve the efficiency and performance of image pulls on a given Kubernetes clusters.
-
-I will add additional documentation once the MVP is reached.
+DPC aims to improve the efficiency of files distribution using a P2P approach.
