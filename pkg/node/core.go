@@ -233,7 +233,7 @@ func (no *Node) Stat(ctx context.Context) (*NodeStat, error) {
 	return nodestat, nil
 }
 
-// Ask the scheduler to find a node to download the item
+// Notify scheduler that the current node has an item
 func (no *Node) NotifyItem(ctx context.Context, item, ops string) error {
 
 	var resp Response
@@ -280,7 +280,7 @@ func (no *Node) NotifyItem(ctx context.Context, item, ops string) error {
 	return nil
 }
 
-// find node to download from
+// Ask the scheduler to find a node to download the item
 func (no *Node) FindSource(ctx context.Context, item string) (*NodeStat, error) {
 
 	var resp Response
@@ -323,19 +323,3 @@ func (no *Node) FindSource(ctx context.Context, item string) (*NodeStat, error) 
 
 	return nodestat, nil
 }
-
-/*
-Proxy:
-
-- proxy pass to the upstream, should filter our every request that meets a certain regex
-- node client/core should have:
-	methods to
-		* deregister()
-		* syncNodeInfo()
-		* garbageCollector() // spin up in separate go-routine
-- fileserver
-	trigger on incoming connections -> addConnection() & removeConnection()
-	synchronizer -> routine that every X seconds synchronises the amount of connections \
-		on the fileserver and the one advertised to the scheduler
-
-*/
