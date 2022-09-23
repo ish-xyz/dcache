@@ -1,7 +1,6 @@
 package node
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -30,11 +29,7 @@ type UpstreamConfig struct {
 func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, proxyPath string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		requestID := generateRequestID()
-
 		if srv.Regex.MatchString(r.RequestURI) && r.Method == "GET" {
-
-			ctx := context.WithValue(r.Context(), RequestIDKey, requestID)
 
 			logrus.Debugln("regex matched for ", r.RequestURI)
 
@@ -61,7 +56,7 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 			fileServerPath := fmt.Sprintf("/fs/%s", item)
 
 			if _, err := os.Stat(filePathOS); err == nil {
-				selfInfo, err := srv.Node.Info(ctx)
+				selfInfo, err := srv.Node.Info()
 				if err != nil {
 					logrus.Errorln("failed to contact scheduler to get node info, fallingback to upstream")
 					goto runProxy
@@ -70,18 +65,16 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 				logrus.Debugln("retrieved node info", selfInfo)
 
 				if selfInfo.Connections+1 >= selfInfo.MaxConnections {
-					logrus.Warnln("Max connections for peer already reached")
+					logrus.Warnln("Max connections for peer already reached, redirecting to upstream")
 					goto runProxy
 				} else {
 					proxyToPeer(r, selfInfo, fileServerPath)
 					goto runFakeProxy
 				}
-
-			} else {
-				logrus.Debugf("file %s not found in local cache, redirecting to upstream", item)
-				goto runProxy
 			}
-
+			//TODO: adjust but keep log message
+			logrus.Debugf("file %s not found in local cache, redirecting to upstream", item)
+			goto runProxy
 		}
 
 	runProxy:
@@ -93,6 +86,23 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 		logrus.Debugln("request is being cached")
 		fakeProxy.ServeHTTP(w, r)
 	}
+}
+
+func (srv *Server) HandleFileserver(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := srv.Node.AddConnection()
+		if err != nil {
+			logrus.Errorln("failed to add connection to scheduler")
+		}
+
+		//	Serve files
+		h.ServeHTTP(w, r)
+
+		err = srv.Node.RemoveConnection()
+		if err != nil {
+			logrus.Errorln("failed to remove connection from scheduler")
+		}
+	})
 }
 
 func (srv *Server) Run() error {
@@ -113,7 +123,7 @@ func (srv *Server) Run() error {
 
 	logrus.Infof("starting up server on %s", address)
 
-	http.Handle("/fs/", http.StripPrefix("/fs/", fs))
+	http.Handle("/fs/", srv.HandleFileserver(http.StripPrefix("/fs/", fs)))
 	http.HandleFunc(fmt.Sprintf("%s/", proxyPath), srv.ProxyRequestHandler(proxy, fakeProxy, proxyPath))
 
 	log.Fatal(http.ListenAndServe(address, nil))

@@ -63,7 +63,11 @@ func logsMiddleware(h http.Handler) http.Handler {
 
 		uri := r.RequestURI
 		method := r.Method
-		logrus.Infof("request: %v - %s %s %s", r.Header[requestIDKey], r.RemoteAddr, method, uri)
+		reqID := []string{"no-request-id"}
+		if _, ok := r.Header[requestIDKey]; ok {
+			reqID = r.Header[requestIDKey]
+		}
+		logrus.Infof("request: %v - %s %s %s", reqID, r.RemoteAddr, method, uri)
 		h.ServeHTTP(w, r) // serve the original request
 
 	}

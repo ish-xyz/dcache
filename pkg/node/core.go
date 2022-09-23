@@ -2,7 +2,6 @@ package node
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,13 +10,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// needed cause context doesn't accept primitive types as key
-type ContextKey string
-
 var (
-	Registered   bool
-	RequestIDKey ContextKey = "X-Request-Id"
-	apiVersion              = "v1"
+	Registered bool
+	apiVersion = "v1"
 )
 
 type Response struct {
@@ -115,7 +110,7 @@ func (no *Node) Register() error {
 }
 
 // add 1 node connection on the scheduler
-func (no *Node) AddConnection(ctx context.Context) error {
+func (no *Node) AddConnection() error {
 
 	var resp Response
 
@@ -124,8 +119,7 @@ func (no *Node) AddConnection(ctx context.Context) error {
 	logrus.Infoln("adding 1 connection")
 
 	headers := map[string]string{
-		"Content-Type":       "application/json",
-		string(RequestIDKey): ctx.Value(RequestIDKey).(string),
+		"Content-Type": "application/json",
 	}
 
 	rawResp, err := no.Request("PUT", resource, headers, nil)
@@ -143,7 +137,7 @@ func (no *Node) AddConnection(ctx context.Context) error {
 	}
 
 	if resp.Status != "success" {
-		logrus.Debugln("error received from scheduler: %s", resp.Message)
+		logrus.Debugln(resp.Message)
 		return fmt.Errorf(resp.Message)
 	}
 
@@ -152,7 +146,7 @@ func (no *Node) AddConnection(ctx context.Context) error {
 }
 
 // remove 1 node connection on the scheduler
-func (no *Node) RemoveConnection(ctx context.Context) error {
+func (no *Node) RemoveConnection() error {
 
 	var resp Response
 
@@ -161,8 +155,7 @@ func (no *Node) RemoveConnection(ctx context.Context) error {
 	logrus.Infoln("removing 1 connection")
 
 	headers := map[string]string{
-		"Content-Type":       "application/json",
-		string(RequestIDKey): ctx.Value(RequestIDKey).(string),
+		"Content-Type": "application/json",
 	}
 
 	rawResp, err := no.Request("PUT", resource, headers, nil)
@@ -189,7 +182,7 @@ func (no *Node) RemoveConnection(ctx context.Context) error {
 }
 
 // returns a map[string]interface{} with the node stat from the scheduler storage
-func (no *Node) Info(ctx context.Context) (*NodeInfo, error) {
+func (no *Node) Info() (*NodeInfo, error) {
 
 	var resp Response
 
@@ -198,8 +191,7 @@ func (no *Node) Info(ctx context.Context) (*NodeInfo, error) {
 	logrus.Infoln("getting node information")
 
 	headers := map[string]string{
-		"Content-Type":       "application/json",
-		string(RequestIDKey): ctx.Value(RequestIDKey).(string),
+		"Content-Type": "application/json",
 	}
 
 	rawResp, err := no.Request("GET", resource, headers, nil)
@@ -237,7 +229,7 @@ func (no *Node) Info(ctx context.Context) (*NodeInfo, error) {
 }
 
 // Notify scheduler that the current node has an item
-func (no *Node) NotifyItem(ctx context.Context, item, ops string) error {
+func (no *Node) NotifyItem(item, ops string) error {
 
 	var resp Response
 	var resource string
@@ -256,8 +248,7 @@ func (no *Node) NotifyItem(ctx context.Context, item, ops string) error {
 	logrus.Infof("notifying removal of item %s", item)
 
 	headers := map[string]string{
-		"Content-Type":       "application/json",
-		string(RequestIDKey): ctx.Value(RequestIDKey).(string),
+		"Content-Type": "application/json",
 	}
 
 	rawResp, err := no.Request(method, resource, headers, nil)
@@ -284,15 +275,14 @@ func (no *Node) NotifyItem(ctx context.Context, item, ops string) error {
 }
 
 // Ask the scheduler to find a node to download the item
-func (no *Node) FindSource(ctx context.Context, item string) (*NodeInfo, error) {
+func (no *Node) FindSource(item string) (*NodeInfo, error) {
 
 	var resp Response
 	logrus.Debugln("scheduling dowload for item %s", item)
 
 	resource := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "schedule", item)
 	headers := map[string]string{
-		"Content-Type":       "application/json",
-		string(RequestIDKey): ctx.Value(RequestIDKey).(string),
+		"Content-Type": "application/json",
 	}
 
 	rawResp, err := no.Request("GET", resource, headers, nil)

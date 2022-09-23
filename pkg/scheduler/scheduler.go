@@ -34,7 +34,7 @@ func (sch *Scheduler) addNodeConnection(nodeName string) error {
 	}
 
 	node.Connections += 1
-	return sch.Store.WriteNode(node, false)
+	return sch.Store.WriteNode(node, true)
 }
 
 // Remove connection for specified node
@@ -45,7 +45,7 @@ func (sch *Scheduler) removeNodeConnection(nodeName string) error {
 		return err
 	}
 	node.Connections -= 1
-	return sch.Store.WriteNode(node, false)
+	return sch.Store.WriteNode(node, true)
 }
 
 // Called by nodes when they periodically advertise the number of connections
