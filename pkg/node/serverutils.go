@@ -5,14 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-
-	"github.com/google/uuid"
 )
-
-func generateRequestID() string {
-	id := uuid.New()
-	return id.String()
-}
 
 // Generate item hash
 // TODO: Hashing is not really the best solution here, encoding or smth else might be better.

@@ -76,6 +76,7 @@ func logsMiddleware(h http.Handler) http.Handler {
 
 func _apiResponse(w http.ResponseWriter, r *http.Request, code int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
+	logrus.Debugln("json encoding data:", data)
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(data)
 }

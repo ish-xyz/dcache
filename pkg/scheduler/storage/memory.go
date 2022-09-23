@@ -8,13 +8,15 @@ import (
 )
 
 type MemoryStorage struct {
+	mu    sync.Mutex
 	Index map[string]map[string]int
 	Nodes map[string]*node.NodeInfo
 }
 
-var lock = sync.RWMutex{}
-
 func (store *MemoryStorage) WriteNode(node *node.NodeInfo, force bool) error {
+
+	store.mu.Lock()
+	defer store.mu.Unlock()
 
 	_, ok := store.Nodes[node.Name]
 	if ok && !force {
@@ -25,8 +27,9 @@ func (store *MemoryStorage) WriteNode(node *node.NodeInfo, force bool) error {
 }
 
 func (store *MemoryStorage) ReadNode(nodeName string) (*node.NodeInfo, error) {
-	lock.Lock()
-	defer lock.Unlock()
+
+	store.mu.Lock()
+	defer store.mu.Unlock()
 
 	node, ok := store.Nodes[nodeName]
 	if ok {
@@ -37,6 +40,9 @@ func (store *MemoryStorage) ReadNode(nodeName string) (*node.NodeInfo, error) {
 
 // Write nodes statuses for items
 func (store *MemoryStorage) WriteIndex(hash string, nodeName string, ops string) error {
+
+	store.mu.Lock()
+	defer store.mu.Unlock()
 
 	if ops == "delete" {
 		delete(store.Index[hash], nodeName)
@@ -53,6 +59,10 @@ func (store *MemoryStorage) WriteIndex(hash string, nodeName string, ops string)
 
 // Read node statuses for item
 func (store *MemoryStorage) ReadIndex(hash string) (map[string]int, error) {
+
+	store.mu.Lock()
+	defer store.mu.Unlock()
+
 	_item, ok := store.Index[hash]
 	if ok {
 		return _item, nil

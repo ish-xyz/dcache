@@ -158,7 +158,7 @@ func (no *Node) RemoveConnection() error {
 		"Content-Type": "application/json",
 	}
 
-	rawResp, err := no.Request("PUT", resource, headers, nil)
+	rawResp, err := no.Request("DELETE", resource, headers, nil)
 	if err != nil {
 		logrus.Debugln("error requesting resource: %s", resource)
 		return err
@@ -168,7 +168,7 @@ func (no *Node) RemoveConnection() error {
 	body, _ := ioutil.ReadAll(rawResp.Body)
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		logrus.Debugln("error decoding payload:", err)
+		logrus.Debugln("error decoding payload:", err, string(body))
 		return err
 	}
 
