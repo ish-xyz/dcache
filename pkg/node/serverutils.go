@@ -23,23 +23,6 @@ func generateHash(url *url.URL, etag string) string {
 	return fmt.Sprintf("%x", sumBytes)
 }
 
-// Helper function to set the peer as server
-func redirectRequestToPeer(r *http.Request, target *NodeInfo, path string) error {
-
-	r.URL.Scheme = target.Scheme
-	r.URL.Host = fmt.Sprintf("%s:%d", target.IPv4, target.Port)
-	r.Host = fmt.Sprintf("%s:%d", target.IPv4, target.Port)
-	r.URL.Path = path
-	r.RequestURI = path
-
-	if _, ok := r.Header["User-Agent"]; !ok {
-		// explicitly disable User-Agent so it's not set to default value
-		r.Header.Set("User-Agent", "")
-	}
-
-	return nil
-}
-
 // Perform an http request and checks the status code
 func runRequestCheck(client *http.Client, req *http.Request) (*http.Response, error) {
 

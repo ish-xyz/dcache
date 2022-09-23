@@ -73,9 +73,10 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 					logrus.Warnln("Max connections for peer already reached")
 					goto runProxy
 				} else {
-					redirectRequestToPeer(r, selfInfo, fileServerPath)
+					proxyToPeer(r, selfInfo, fileServerPath)
 					goto runFakeProxy
 				}
+
 			} else {
 				logrus.Debugf("file %s not found in local cache, redirecting to upstream", item)
 				goto runProxy
@@ -104,7 +105,6 @@ func (srv *Server) Run() error {
 
 	proxyPath := "/proxy"
 	fakeProxy := newFakeProxy()
-
 	proxy := newCustomProxy(url, proxyPath)
 	fs := http.FileServer(http.Dir(srv.DataDir))
 	address := fmt.Sprintf("%s:%d", srv.Node.IPv4, srv.Node.Port)

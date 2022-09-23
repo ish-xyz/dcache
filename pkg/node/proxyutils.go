@@ -1,6 +1,7 @@
 package node
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -38,6 +39,24 @@ func newCustomProxy(target *url.URL, prefix string) *httputil.ReverseProxy {
 		}
 	}
 	return &httputil.ReverseProxy{Director: director}
+}
+
+// Helper function to set the peer as server
+func proxyToPeer(r *http.Request, target *NodeInfo, path string) error {
+
+	r.Host = fmt.Sprintf("%s:%d", target.IPv4, target.Port)
+	r.RequestURI = path
+	r.URL.Host = fmt.Sprintf("%s:%d", target.IPv4, target.Port)
+	r.URL.Path = path
+	r.URL.RawPath = ""
+	r.URL.Scheme = target.Scheme
+
+	if _, ok := r.Header["User-Agent"]; !ok {
+		// explicitly disable User-Agent so it's not set to default value
+		r.Header.Set("User-Agent", "")
+	}
+
+	return nil
 }
 
 func joinURLPath(a, b *url.URL) (path, rawpath string) {
