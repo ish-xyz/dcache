@@ -99,8 +99,7 @@ func (d *Downloader) Watch() error {
 				d.Logger.Errorln("failed to take last item from the queue")
 				continue
 			}
-			d.Logger.Infof("%+v", lastItem.Req)
-			d.Logger.Infof("downloading from %s to %s", lastItem.Req.URL.String(), lastItem.FilePath)
+
 			err = d.download(lastItem)
 			if err != nil {
 				d.Logger.Errorf("failed to download item %s with error: %v", lastItem.FilePath, err)
@@ -110,6 +109,7 @@ func (d *Downloader) Watch() error {
 					return fmt.Errorf("failed to delete corrupt file %s with error %v", lastItem.FilePath, err)
 				}
 			}
+			d.Logger.Infof("cached %s in %s", lastItem.Req.URL.String(), lastItem.FilePath)
 		}
 		time.Sleep(d.Interval * time.Second)
 	}

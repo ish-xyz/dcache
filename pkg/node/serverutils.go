@@ -1,6 +1,7 @@
 package node
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"net/http"
@@ -35,7 +36,7 @@ func runRequestCheck(client *http.Client, req *http.Request) (*http.Response, er
 
 // Return a deep copy of request
 func copyRequest(orig *http.Request, newurl, newhost, method string) (*http.Request, error) {
-	headReq := orig.Clone(orig.Context())
+	headReq := orig.Clone(context.TODO())
 	headReq.Host = newhost
 	headReq.RequestURI = "" // it's illegal to have RequestURI predefined
 	headReq.Method = method
