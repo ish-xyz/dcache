@@ -116,6 +116,7 @@ func exec(cmd *cobra.Command, args []string) {
 	re := regexp.MustCompile(proxyRegex)
 	dw := downloader.NewDownloader(
 		logger.WithField("component", "downloader"),
+		time.Duration(5),
 	)
 	uconf := &node.UpstreamConfig{
 		Address:  upstream,

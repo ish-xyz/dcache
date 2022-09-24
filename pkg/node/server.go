@@ -35,7 +35,7 @@ func NewServer(nodeObj *Node,
 
 	return &Server{
 		Node:       nodeObj,
-		DataDir:    dataDir,
+		DataDir:    strings.TrimSuffix(dataDir, "/"),
 		Upstream:   uconf,
 		Downloader: dw,
 		Regex:      re,
@@ -69,6 +69,7 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 
 			// scenario 1: item is already present in the local cache of the node
 			item := generateHash(r.URL, headResp.Header["Etag"][0])
+			logrus.Debugf("item name: %s", item)
 			filePathOS := fmt.Sprintf("%s/%s", srv.DataDir, item)
 			fileServerPath := fmt.Sprintf("/fs/%s", item)
 
@@ -78,29 +79,39 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 					logrus.Errorln("failed to contact scheduler to get node info, fallingback to upstream")
 					goto runProxy
 				}
-
 				logrus.Debugln("retrieved node info", selfInfo)
 
 				if selfInfo.Connections+1 >= selfInfo.MaxConnections {
 					logrus.Warnln("Max connections for peer already reached, redirecting to upstream")
+
 					goto runProxy
 				} else {
 					proxyToPeer(r, selfInfo, fileServerPath)
 					goto runFakeProxy
 				}
+			} else {
+				logrus.Debugf("file %s not found in local cache, redirecting to upstream", item)
+				logrus.Debugf("heating cache for next requests")
+				upstreamReq, err := copyRequest(r, upstreamUrl, upstreamHost, "GET")
+				if err != nil {
+					logrus.Errorln("request copy for downloader failed:", err)
+				} else {
+					srv.Downloader.Push(upstreamReq, filePathOS)
+				}
+				goto runProxy
 			}
+
 			//TODO: adjust but keep log message
-			logrus.Debugf("file %s not found in local cache, redirecting to upstream", item)
-			goto runProxy
+
 		}
 
 	runProxy:
-		logrus.Debugln("request is going to upstream")
+		logrus.Infof("request for %s is going to upstream", r.URL.String())
 		proxy.ServeHTTP(w, r)
 		return
 
 	runFakeProxy:
-		logrus.Debugln("request is being cached")
+		logrus.Infof("request for %s is being cached", r.URL.String())
 		fakeProxy.ServeHTTP(w, r)
 	}
 }
@@ -142,6 +153,8 @@ func (srv *Server) Run() error {
 
 	http.Handle("/fs/", srv.HandleFileserver(http.StripPrefix("/fs/", fs)))
 	http.HandleFunc(fmt.Sprintf("%s/", proxyPath), srv.ProxyRequestHandler(proxy, fakeProxy, proxyPath))
+
+	go srv.Downloader.Watch()
 
 	log.Fatal(http.ListenAndServe(address, nil))
 	return nil

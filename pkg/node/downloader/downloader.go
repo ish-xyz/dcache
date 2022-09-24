@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -16,6 +17,7 @@ type Downloader struct {
 	KillSwitch bool
 	Client     *http.Client
 	Logger     *logrus.Entry
+	Interval   time.Duration
 }
 
 type Item struct {
@@ -23,13 +25,14 @@ type Item struct {
 	FilePath string
 }
 
-func NewDownloader(log *logrus.Entry) *Downloader {
+func NewDownloader(log *logrus.Entry, inte time.Duration) *Downloader {
 
 	return &Downloader{
 		Queue:      []*Item{},
 		KillSwitch: false,
 		Logger:     log,
 		Client:     &http.Client{},
+		Interval:   inte,
 	}
 }
 
@@ -61,24 +64,6 @@ func (d *Downloader) Pop() (*Item, error) {
 	return nil, fmt.Errorf("empty queue")
 }
 
-func (d *Downloader) Watch() error {
-	for {
-		if d.KillSwitch {
-			break
-		}
-
-		if len(d.Queue) > 0 {
-			lastItem, err := d.Pop()
-			if err != nil {
-				d.Logger.Errorln("failed to take last item of the queue")
-				continue
-			}
-			d.download(lastItem)
-		}
-	}
-	return nil
-}
-
 func (d *Downloader) download(item *Item) error {
 
 	file, err := os.Create(item.FilePath)
@@ -89,20 +74,44 @@ func (d *Downloader) download(item *Item) error {
 
 	resp, err := d.Client.Do(item.Req)
 	if err != nil {
-		return err
+		return fmt.Errorf("request error: %v", err)
 	}
 	defer resp.Body.Close()
 
 	size, err := io.Copy(file, resp.Body)
 
 	if resp.Header.Get("content-length") != fmt.Sprintf("%d", size) {
-		d.Logger.Errorln("content-length and file size don't match, deleting file")
-		err = os.Remove(item.FilePath)
-		if err != nil {
-			d.Logger.Errorln("failed to delete file:", err)
-		}
-		return err
+		return fmt.Errorf("size mismatch: file deleted")
 	}
 
 	return err
+}
+
+func (d *Downloader) Watch() error {
+	for {
+		if d.KillSwitch {
+			break
+		}
+		if len(d.Queue) > 0 {
+
+			lastItem, err := d.Pop()
+			if err != nil {
+				d.Logger.Errorln("failed to take last item from the queue")
+				continue
+			}
+			d.Logger.Infof("%+v", lastItem.Req)
+			d.Logger.Infof("downloading from %s to %s", lastItem.Req.URL.String(), lastItem.FilePath)
+			err = d.download(lastItem)
+			if err != nil {
+				d.Logger.Errorf("failed to download item %s with error: %v", lastItem.FilePath, err)
+				d.Logger.Infof("removing file %s", lastItem.FilePath)
+				err = os.Remove(lastItem.FilePath)
+				if err != nil {
+					return fmt.Errorf("failed to delete corrupt file %s with error %v", lastItem.FilePath, err)
+				}
+			}
+		}
+		time.Sleep(d.Interval * time.Second)
+	}
+	return nil
 }
