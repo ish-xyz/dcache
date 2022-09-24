@@ -1,33 +1,33 @@
 version: "3.9"
 services:
   node1:
-    image: dpc:latest
+    image: dcache:latest
     ports:
       - "8101:8100"
     entrypoint: /bin/sh
     command:
     - -c
-    - /dpc node -c /mnt/node.yaml -i $$(hostname -i) -n $$(hostname) -v
+    - /dcache node -c /mnt/node.yaml -i $$(hostname -i) -n $$(hostname) -v
     volumes:
       - ./configs:/mnt
     networks:
-    - dpc
+    - dcache
 
   node2:
-    image: dpc:latest
+    image: dcache:latest
     ports:
       - "8102:8100"
     entrypoint: /bin/sh
     command:
     - -c
-    - /dpc node -c /mnt/node.yaml -i $$(hostname -i) -n $$(hostname) -v
+    - /dcache node -c /mnt/node.yaml -i $$(hostname -i) -n $$(hostname) -v
     volumes:
       - ./configs:/mnt
     networks:
-    - dpc
+    - dcache
 
   scheduler:
-    image: dpc:latest
+    image: dcache:latest
     ports:
       - "8000:8000"
     command:
@@ -37,7 +37,7 @@ services:
     volumes:
       - ./configs:/mnt
     networks:
-    - dpc
+    - dcache
 
 networks:
-  dpc: {}
+  dcache: {}

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/ish-xyz/dpc/pkg/node"
+	"github.com/ish-xyz/dcache/pkg/node"
 )
 
 type MemoryStorage struct {

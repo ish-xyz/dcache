@@ -3,16 +3,16 @@ package cmd
 import (
 	"os"
 
-	nodecmd "github.com/ish-xyz/dpc/cmd/node"
-	schedulercmd "github.com/ish-xyz/dpc/cmd/scheduler"
+	nodecmd "github.com/ish-xyz/dcache/cmd/node"
+	schedulercmd "github.com/ish-xyz/dcache/cmd/scheduler"
 	"github.com/spf13/cobra"
 )
 
 var (
 	rootCmd = &cobra.Command{
-		Use:   "dpc",
-		Short: "Distributed P2P Cache",
-		Long:  "Distributed P2P Cache",
+		Use:   "dcache",
+		Short: "Distributed Caching Platform",
+		Long:  "Distributed Caching Platform",
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) == 0 {
 				cmd.Help()

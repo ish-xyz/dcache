@@ -1,4 +1,4 @@
-module github.com/ish-xyz/dpc
+module github.com/ish-xyz/dcache
 
 go 1.17
 

@@ -1,6 +1,6 @@
 package storage
 
-import "github.com/ish-xyz/dpc/pkg/node"
+import "github.com/ish-xyz/dcache/pkg/node"
 
 // Write() -> location,
 type Storage interface {

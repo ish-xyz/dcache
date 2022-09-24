@@ -2,8 +2,8 @@ package scheduler
 
 import (
 	"github.com/go-playground/validator"
-	"github.com/ish-xyz/dpc/pkg/node"
-	"github.com/ish-xyz/dpc/pkg/scheduler/storage"
+	"github.com/ish-xyz/dcache/pkg/node"
+	"github.com/ish-xyz/dcache/pkg/scheduler/storage"
 	"github.com/sirupsen/logrus"
 )
 

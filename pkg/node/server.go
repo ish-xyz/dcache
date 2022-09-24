@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/ish-xyz/dpc/pkg/node/downloader"
+	"github.com/ish-xyz/dcache/pkg/node/downloader"
 	"github.com/sirupsen/logrus"
 )
 
