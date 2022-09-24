@@ -1,3 +1,3 @@
-Distributed P2P Cache for HTTP fileservers
+Distributed Caching Platform for HTTP fileservers.
 
-DPC aims to improve the efficiency of files distribution using a P2P approach.
+dcache aims to improve the efficiency and performance of files distribution.
