@@ -20,17 +20,17 @@ func generateHash(url *url.URL, etag string) string {
 // Perform an http request and checks the status code
 func runRequestCheck(client *http.Client, req *http.Request) (*http.Response, error) {
 
-	headResp, err := client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error with request %v", err)
 	}
-	defer headResp.Body.Close()
+	defer resp.Body.Close()
 
-	if headResp.StatusCode != 200 {
-		return nil, fmt.Errorf("status code of %s request is not 200, is: %d", req.Method, headResp.StatusCode)
+	if resp.StatusCode != 200 && resp.StatusCode != 304 {
+		return nil, fmt.Errorf("status code of %s request is not 200, is: %d", req.Method, resp.StatusCode)
 	}
 
-	return headResp, nil
+	return resp, nil
 
 }
 

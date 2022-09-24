@@ -81,7 +81,7 @@ func (d *Downloader) download(item *Item) error {
 	size, err := io.Copy(file, resp.Body)
 
 	if resp.Header.Get("content-length") != fmt.Sprintf("%d", size) {
-		return fmt.Errorf("size mismatch: file deleted")
+		return fmt.Errorf("size mismatch, wanted %s actual %s", resp.Header.Get("content-length"), fmt.Sprintf("%d", size))
 	}
 
 	return err

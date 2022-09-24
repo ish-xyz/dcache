@@ -45,7 +45,7 @@ func newCustomProxy(target *url.URL, prefix string) *httputil.ReverseProxy {
 func proxyToPeer(r *http.Request, target *NodeInfo, path string) error {
 
 	r.Host = fmt.Sprintf("%s:%d", target.IPv4, target.Port)
-	r.RequestURI = path
+	r.RequestURI = ""
 	r.URL.Host = fmt.Sprintf("%s:%d", target.IPv4, target.Port)
 	r.URL.Path = path
 	r.URL.RawPath = ""
