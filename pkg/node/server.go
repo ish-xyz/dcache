@@ -10,19 +10,36 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/ish-xyz/dpc/pkg/node/downloader"
 	"github.com/sirupsen/logrus"
 )
 
 type Server struct {
-	Node     *Node           `validate:"required"`
-	Upstream *UpstreamConfig `validate:"required,dive"`
-	DataDir  string          `validate:"required"` // Add dir validator
-	Regex    *regexp.Regexp  `validate:"required"`
+	Node       *Node           `validate:"required"`
+	Upstream   *UpstreamConfig `validate:"required,dive"`
+	DataDir    string          `validate:"required"` // Add dir validator
+	Downloader *downloader.Downloader
+	Regex      *regexp.Regexp `validate:"required"`
 }
 
 type UpstreamConfig struct {
 	Address  string `validate:"required,url"`
 	Insecure bool   `validate:"required"` // add boolean validator
+}
+
+func NewServer(nodeObj *Node,
+	dataDir string,
+	uconf *UpstreamConfig,
+	dw *downloader.Downloader,
+	re *regexp.Regexp) *Server {
+
+	return &Server{
+		Node:       nodeObj,
+		DataDir:    dataDir,
+		Upstream:   uconf,
+		Downloader: dw,
+		Regex:      re,
+	}
 }
 
 // ProxyRequestHandler handles the http request using proxy

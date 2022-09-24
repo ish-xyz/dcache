@@ -1,13 +1,13 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 	"regexp"
 	"time"
 
 	"github.com/go-playground/validator"
 	"github.com/ish-xyz/dpc/pkg/node"
+	"github.com/ish-xyz/dpc/pkg/node/downloader"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -81,6 +81,8 @@ func registerNode(nodeObj *node.Node) {
 
 func exec(cmd *cobra.Command, args []string) {
 
+	logger := logrus.New()
+
 	if config != "" {
 		viper.SetConfigFile(config)
 		err := viper.ReadInConfig()
@@ -104,7 +106,6 @@ func exec(cmd *cobra.Command, args []string) {
 
 	validate := validator.New()
 	nodeObj := node.NewNode(name, ipv4, "http", schedulerAddress, port, maxConnections)
-	fmt.Printf("%+v", nodeObj)
 	err := validate.Struct(nodeObj)
 	if err != nil {
 		logrus.Errorf("Error while validating user inputs or configuration file")
@@ -113,17 +114,15 @@ func exec(cmd *cobra.Command, args []string) {
 	}
 
 	re := regexp.MustCompile(proxyRegex)
-
-	serverObj := &node.Server{
-		Node:    nodeObj,
-		DataDir: dataDir,
-		Upstream: &node.UpstreamConfig{
-			Address:  upstream,
-			Insecure: insecure,
-		},
-		Regex: re,
+	dw := downloader.NewDownloader(
+		logger.WithField("component", "downloader"),
+	)
+	uconf := &node.UpstreamConfig{
+		Address:  upstream,
+		Insecure: insecure,
 	}
 
+	serverObj := *node.NewServer(nodeObj, dataDir, uconf, dw, re)
 	err = validate.Struct(serverObj)
 	if err != nil {
 		logrus.Errorf("Error while validating user inputs or configuration file")
