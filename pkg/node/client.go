@@ -228,6 +228,8 @@ func (no *Node) Info() (*NodeInfo, error) {
 	return nodeInfo, nil
 }
 
+//TODO: make the following method a routine "Notifier" that runs in background
+// 		and notifies as soon as items are created or downloaded
 // Notify scheduler that the current node has an item
 func (no *Node) NotifyItem(item, ops string) error {
 

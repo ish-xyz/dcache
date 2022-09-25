@@ -71,40 +71,37 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 			// scenario 1: item is already present in the local cache of the node
 			item := generateHash(r.URL, headResp.Header["Etag"][0])
 			logrus.Debugf("item name: %s", item)
+
 			filePathOS := fmt.Sprintf("%s/%s", srv.DataDir, item)
 			fileServerPath := fmt.Sprintf("/fs/%s", item)
-
 			if _, err := os.Stat(filePathOS); err == nil {
 				selfInfo, err := srv.Node.Info()
 				if err != nil {
 					logrus.Errorln("failed to contact scheduler to get node info, fallingback to upstream")
 					goto runProxy
 				}
-				logrus.Debugln("retrieved node info", selfInfo)
 
+				logrus.Debugln("retrieved node info", selfInfo)
 				if selfInfo.Connections+1 >= selfInfo.MaxConnections {
 					logrus.Warnln("Max connections for peer already reached, redirecting to upstream")
-
 					goto runProxy
-				} else {
-					proxyToPeer(r, selfInfo, fileServerPath)
-					goto runFakeProxy
 				}
-			} else {
-				logrus.Debugf("file %s not found in local cache, redirecting to upstream", item)
-				logrus.Debugf("heating cache for next requests")
-				// Note for myself: can't use r.Context() because the download
-				// 	will get most likely processed after this request has finished and the contex canceled
-				upstreamReq, err := copyRequest(context.TODO(), r, upstreamUrl, upstreamHost, "GET")
-				if err != nil {
-					logrus.Errorln("request copy for downloader failed:", err)
-				} else {
-					srv.Downloader.Push(upstreamReq, filePathOS)
-				}
-				goto runProxy
+
+				proxyToPeer(r, selfInfo, fileServerPath)
+				goto runFakeProxy
 			}
 
-			//TODO: adjust but keep log message
+			logrus.Debugf("file %s not found in local cache, redirecting to upstream", item)
+			logrus.Debugf("heating cache for next requests")
+			// Note for myself: can't use r.Context() because the download
+			// 	will get most likely processed after this request has finished and the contex canceled
+			upstreamReq, err := copyRequest(context.TODO(), r, upstreamUrl, upstreamHost, "GET")
+			if err == nil {
+				logrus.Debugln("request err", err)
+				srv.Downloader.Push(upstreamReq, filePathOS)
+			}
+
+			goto runProxy
 
 		}
 
