@@ -35,15 +35,16 @@ func runRequestCheck(client *http.Client, req *http.Request) (*http.Response, er
 }
 
 // Return a deep copy of request
-func copyRequest(orig *http.Request, newurl, newhost, method string) (*http.Request, error) {
-	headReq := orig.Clone(context.TODO())
-	headReq.Host = newhost
-	headReq.RequestURI = "" // it's illegal to have RequestURI predefined
-	headReq.Method = method
+func copyRequest(ctx context.Context, orig *http.Request, newurl, newhost, method string) (*http.Request, error) {
+
+	newReq := orig.Clone(ctx)
+	newReq.Host = newhost
+	newReq.RequestURI = "" // it's illegal to have RequestURI predefined
+	newReq.Method = method
 	u, err := url.Parse(newurl)
 	if err != nil {
 		return nil, err
 	}
-	headReq.URL = u
-	return headReq, nil
+	newReq.URL = u
+	return newReq, nil
 }

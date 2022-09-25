@@ -100,6 +100,8 @@ func (d *Downloader) Watch() error {
 				continue
 			}
 
+			logrus.Warnf("%+v", lastItem.Req.Context())
+			logrus.Warnf("%+v", lastItem.Req)
 			err = d.download(lastItem)
 			if err != nil {
 				d.Logger.Errorf("failed to download item %s with error: %v", lastItem.FilePath, err)

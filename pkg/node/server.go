@@ -1,6 +1,7 @@
 package node
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -54,7 +55,7 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 			upstreamHost := strings.Split(srv.Upstream.Address, "://")[1]
 
 			// prepare HEAD request
-			headReq, err := copyRequest(r, upstreamUrl, upstreamHost, "HEAD")
+			headReq, err := copyRequest(r.Context(), r, upstreamUrl, upstreamHost, "HEAD")
 			if err != nil {
 				logrus.Errorln("Error parsing http resource for head request:", err)
 				goto runProxy
@@ -92,7 +93,7 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 			} else {
 				logrus.Debugf("file %s not found in local cache, redirecting to upstream", item)
 				logrus.Debugf("heating cache for next requests")
-				upstreamReq, err := copyRequest(r, upstreamUrl, upstreamHost, "GET")
+				upstreamReq, err := copyRequest(context.TODO(), r, upstreamUrl, upstreamHost, "GET")
 				if err != nil {
 					logrus.Errorln("request copy for downloader failed:", err)
 				} else {

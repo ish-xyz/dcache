@@ -116,7 +116,7 @@ func (no *Node) AddConnection() error {
 
 	resource := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "addNodeConnection", no.Name)
 
-	logrus.Infoln("adding 1 connection")
+	logrus.Debugln("adding 1 connection")
 
 	headers := map[string]string{
 		"Content-Type": "application/json",
@@ -141,7 +141,7 @@ func (no *Node) AddConnection() error {
 		return fmt.Errorf(resp.Message)
 	}
 
-	logrus.Infoln("connection added successfully")
+	logrus.Debugln("connection added successfully")
 	return nil
 }
 
@@ -152,7 +152,7 @@ func (no *Node) RemoveConnection() error {
 
 	resource := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "removeNodeConnection", no.Name)
 
-	logrus.Infoln("removing 1 connection")
+	logrus.Debugln("removing 1 connection")
 
 	headers := map[string]string{
 		"Content-Type": "application/json",
@@ -177,7 +177,7 @@ func (no *Node) RemoveConnection() error {
 		return fmt.Errorf(resp.Message)
 	}
 
-	logrus.Infoln("connection removed successfully")
+	logrus.Debugln("connection removed successfully")
 	return nil
 }
 
