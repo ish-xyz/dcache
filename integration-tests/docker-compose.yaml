@@ -7,7 +7,7 @@ services:
     entrypoint: /bin/sh
     command:
     - -c
-    - /dcache node -c /mnt/node.yaml -i $$(hostname -i) -n $$(hostname)
+    - /dcache node -c /mnt/node.yaml -i $$(hostname -i) -n $$(hostname) -v
     volumes:
       - ./configs:/mnt
     networks:
@@ -20,7 +20,7 @@ services:
     entrypoint: /bin/sh
     command:
     - -c
-    - /dcache node -c /mnt/node.yaml -i $$(hostname -i) -n $$(hostname)
+    - /dcache node -c /mnt/node.yaml -i $$(hostname -i) -n $$(hostname) -v
     volumes:
       - ./configs:/mnt
     networks:

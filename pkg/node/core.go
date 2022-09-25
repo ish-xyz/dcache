@@ -188,7 +188,7 @@ func (no *Node) Info() (*NodeInfo, error) {
 
 	resource := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "getNode", no.Name)
 
-	logrus.Infoln("getting node information")
+	logrus.Debugln("getting node information")
 
 	headers := map[string]string{
 		"Content-Type": "application/json",

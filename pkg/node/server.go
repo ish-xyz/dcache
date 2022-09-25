@@ -93,6 +93,8 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 			} else {
 				logrus.Debugf("file %s not found in local cache, redirecting to upstream", item)
 				logrus.Debugf("heating cache for next requests")
+				// Note for myself: can't use r.Context() because the download
+				// 	will get most likely processed after this request has finished and the contex canceled
 				upstreamReq, err := copyRequest(context.TODO(), r, upstreamUrl, upstreamHost, "GET")
 				if err != nil {
 					logrus.Errorln("request copy for downloader failed:", err)
