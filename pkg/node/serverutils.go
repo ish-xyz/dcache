@@ -27,7 +27,7 @@ func runRequestCheck(client *http.Client, req *http.Request) (*http.Response, er
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 && resp.StatusCode != 304 {
-		return nil, fmt.Errorf("status code of %s request is not 200, is: %d", req.Method, resp.StatusCode)
+		return nil, fmt.Errorf("status code of %s request is not 200 or 304, is: %d", req.Method, resp.StatusCode)
 	}
 
 	return resp, nil
