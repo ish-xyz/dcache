@@ -80,28 +80,24 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 					goto upstream
 				}
 
-				logrus.Debugln("retrieved node info", selfInfo)
-				if selfInfo.Connections+1 >= selfInfo.MaxConnections {
-					logrus.Warnln("Max connections for peer already reached, redirecting to upstream")
-					goto upstream // TODO: to be removed when scenario 2 it's implemented
-				} else {
+				logrus.Debugln("checking connections, retrieved node info", selfInfo)
+				if selfInfo.Connections+1 < selfInfo.MaxConnections {
 					srv.ServeFile(w, r, filepath)
 					return
 				}
+				logrus.Warnln("max connections for peer already reached, redirecting to upstream")
+				goto upstream // TODO: remove when scenario 2 it's implemented
 			}
 
 			logrus.Debugf("file %s not found in local cache, redirecting to upstream", item)
 			logrus.Debugf("heating cache for next requests")
+
 			// Note for myself: can't use r.Context() because the download
 			// 	will get most likely processed after this request has finished and the contex canceled
-			upstreamReq, err := copyRequest(context.TODO(), r, upstreamUrl, upstreamHost, "GET")
-			if err == nil {
-				logrus.Debugln("request err", err)
-				srv.Downloader.Push(upstreamReq, filepath)
-			}
+			upstreamReq, _ := copyRequest(context.TODO(), r, upstreamUrl, upstreamHost, "GET")
+			srv.Downloader.Push(upstreamReq, filepath)
 
 			goto upstream
-
 		}
 
 	upstream:

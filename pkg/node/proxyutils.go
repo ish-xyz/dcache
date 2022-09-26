@@ -42,13 +42,11 @@ func newCustomProxy(target *url.URL, prefix string) *httputil.ReverseProxy {
 }
 
 // Helper function to set the peer as server
-func proxyToPeer(r *http.Request, target *NodeInfo, path string) error {
+func rewriteToPeer(r *http.Request, target *NodeInfo) error {
 
 	r.Host = fmt.Sprintf("%s:%d", target.IPv4, target.Port)
 	r.RequestURI = ""
 	r.URL.Host = fmt.Sprintf("%s:%d", target.IPv4, target.Port)
-	r.URL.Path = path
-	r.URL.RawPath = ""
 	r.URL.Scheme = target.Scheme
 
 	if _, ok := r.Header["User-Agent"]; !ok {
