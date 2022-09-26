@@ -40,6 +40,10 @@ func (d *Downloader) Push(req *http.Request, filepath string) {
 	d.Queue <- item
 }
 
+func (d *Downloader) Pop() *Item {
+	return <-d.Queue
+}
+
 func (d *Downloader) download(item *Item) error {
 
 	file, err := os.Create(item.FilePath)
@@ -69,7 +73,7 @@ func (d *Downloader) Watch() error {
 			break
 		}
 
-		lastItem := <-d.Queue
+		lastItem := d.Pop()
 		err := d.download(lastItem)
 		if err != nil {
 			d.Logger.Errorf("failed to download item %s with error: %v", lastItem.FilePath, err)
