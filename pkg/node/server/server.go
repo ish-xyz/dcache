@@ -149,6 +149,7 @@ func (srv *Server) Run() error {
 	http.HandleFunc(fmt.Sprintf("%s/", proxyPath), srv.ProxyRequestHandler(proxy, fakeProxy, proxyPath))
 
 	go srv.Downloader.Watch()
+	go srv.Notifier.Watch()
 
 	log.Fatal(http.ListenAndServe(address, nil))
 	return nil

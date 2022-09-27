@@ -46,17 +46,17 @@ func (d *Downloader) Pop() *Item {
 
 func (d *Downloader) download(item *Item) error {
 
-	file, err := os.Create(item.FilePath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
 	resp, err := d.Client.Do(item.Req)
 	if err != nil {
 		return fmt.Errorf("request error: %v", err)
 	}
 	defer resp.Body.Close()
+
+	file, err := os.Create(item.FilePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
 
 	size, err := io.Copy(file, resp.Body)
 

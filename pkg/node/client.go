@@ -228,8 +228,6 @@ func (no *Client) Info() (*NodeInfo, error) {
 	return nodeInfo, nil
 }
 
-//TODO: make the following method a routine "Notifier" that runs in background
-// 		and notifies as soon as items are created or downloaded
 // Notify scheduler that the current node has an item
 func (no *Client) NotifyItem(item string, ops int) error {
 
@@ -239,7 +237,7 @@ func (no *Client) NotifyItem(item string, ops int) error {
 
 	// 1 -> create
 	// 4 -> remove
-
+	logrus.Debugf("notifying to scheduler: ops -> %d, item -> %s", ops, item)
 	if ops == 1 {
 		resource = fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "addNodeConnection", no.Name)
 		method = "PUT"
@@ -249,8 +247,6 @@ func (no *Client) NotifyItem(item string, ops int) error {
 	} else {
 		return fmt.Errorf("NotifyItem: unknown operation")
 	}
-
-	logrus.Infof("notifying removal of item %s", item)
 
 	headers := map[string]string{
 		"Content-Type": "application/json",
@@ -275,7 +271,6 @@ func (no *Client) NotifyItem(item string, ops int) error {
 		return err
 	}
 
-	logrus.Infof("succcess: %s connection for item %s", ops, item)
 	return nil
 }
 

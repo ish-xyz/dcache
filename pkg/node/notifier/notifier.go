@@ -43,6 +43,7 @@ func (nt *Notifier) Watch() error {
 				if event.Op == 1 {
 					nt.Logger.Infof("CREATE event received for %s", filepath.Base(event.Name))
 					nt.NodeClient.NotifyItem(filepath.Base(event.Name), int(event.Op))
+
 				} else if event.Op == 4 {
 					nt.Logger.Infof("REMOVE event received for %s", filepath.Base(event.Name))
 					nt.NodeClient.NotifyItem(filepath.Base(event.Name), int(event.Op))
