@@ -8,6 +8,8 @@ import (
 	"github.com/go-playground/validator"
 	"github.com/ish-xyz/dcache/pkg/node"
 	"github.com/ish-xyz/dcache/pkg/node/downloader"
+	"github.com/ish-xyz/dcache/pkg/node/notifier"
+	"github.com/ish-xyz/dcache/pkg/node/server"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -117,12 +119,17 @@ func exec(cmd *cobra.Command, args []string) {
 	dw := downloader.NewDownloader(
 		logger.WithField("component", "downloader"),
 	)
-	uconf := &node.UpstreamConfig{
+	nt := notifier.NewNotifier(
+		client,
+		dataDir,
+		logger.WithField("component", "notifier"),
+	)
+	uconf := &server.UpstreamConfig{
 		Address:  upstream,
 		Insecure: insecure,
 	}
 
-	serverObj := *node.NewServer(client, dataDir, uconf, dw, re)
+	serverObj := *server.NewServer(client, dataDir, uconf, dw, nt, re)
 	err = validate.Struct(serverObj)
 	if err != nil {
 		logrus.Errorf("Error while validating user inputs or configuration file")

@@ -3,8 +3,8 @@ module github.com/ish-xyz/dcache
 go 1.17
 
 require (
+	github.com/fsnotify/fsnotify v1.5.4
 	github.com/go-playground/validator v9.31.0+incompatible
-	github.com/google/uuid v1.1.2
 	github.com/gorilla/mux v1.8.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.5.0
@@ -12,7 +12,6 @@ require (
 )
 
 require (
-	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect

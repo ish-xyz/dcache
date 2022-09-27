@@ -1,4 +1,4 @@
-package node
+package server
 
 import (
 	"fmt"
@@ -6,6 +6,8 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
+
+	"github.com/ish-xyz/dcache/pkg/node"
 )
 
 func newFakeProxy() *httputil.ReverseProxy {
@@ -42,7 +44,7 @@ func newCustomProxy(target *url.URL, prefix string) *httputil.ReverseProxy {
 }
 
 // Helper function to set the peer as server
-func rewriteToPeer(r *http.Request, target *NodeInfo) error {
+func rewriteToPeer(r *http.Request, target *node.NodeInfo) error {
 
 	r.Host = fmt.Sprintf("%s:%d", target.IPv4, target.Port)
 	r.RequestURI = ""

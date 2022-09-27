@@ -1,4 +1,4 @@
-package main
+package notifier
 
 import (
 	"path/filepath"
@@ -10,8 +10,16 @@ import (
 
 type Notifier struct {
 	NodeClient *node.Client
-	SrvData    string
+	DataDir    string
 	Logger     *logrus.Entry
+}
+
+func NewNotifier(nc *node.Client, dataDir string, log *logrus.Entry) *Notifier {
+	return &Notifier{
+		NodeClient: nc,
+		DataDir:    dataDir,
+		Logger:     log,
+	}
 }
 
 func (nt *Notifier) Watch() error {
@@ -49,7 +57,7 @@ func (nt *Notifier) Watch() error {
 		}
 	}()
 
-	err = watcher.Add(nt.SrvData)
+	err = watcher.Add(nt.DataDir)
 	if err != nil {
 		return err
 	}

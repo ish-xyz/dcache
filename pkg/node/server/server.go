@@ -1,4 +1,4 @@
-package node
+package server
 
 import (
 	"context"
@@ -11,15 +11,18 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/ish-xyz/dcache/pkg/node"
 	"github.com/ish-xyz/dcache/pkg/node/downloader"
+	"github.com/ish-xyz/dcache/pkg/node/notifier"
 	"github.com/sirupsen/logrus"
 )
 
 type Server struct {
-	Node       *Client         `validate:"required"`
+	Node       *node.Client    `validate:"required"`
 	Upstream   *UpstreamConfig `validate:"required,dive"`
 	DataDir    string          `validate:"required"` // Add dir validator
 	Downloader *downloader.Downloader
+	Notifier   *notifier.Notifier
 	Regex      *regexp.Regexp `validate:"required"`
 }
 
@@ -28,10 +31,11 @@ type UpstreamConfig struct {
 	Insecure bool   `validate:"required"` // add boolean validator
 }
 
-func NewServer(nodeObj *Client,
+func NewServer(nodeObj *node.Client,
 	dataDir string,
 	uconf *UpstreamConfig,
 	dw *downloader.Downloader,
+	nt *notifier.Notifier,
 	re *regexp.Regexp) *Server {
 
 	return &Server{
@@ -39,6 +43,7 @@ func NewServer(nodeObj *Client,
 		DataDir:    strings.TrimSuffix(dataDir, "/"),
 		Upstream:   uconf,
 		Downloader: dw,
+		Notifier:   nt,
 		Regex:      re,
 	}
 }
