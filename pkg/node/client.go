@@ -21,12 +21,12 @@ type Response struct {
 	Data    map[string]interface{} `json:"data"`
 }
 
-type Node struct {
+type Client struct {
 	Name             string       `validate:"required,alphanum"`
 	IPv4             string       `validate:"required,ipv4"`
 	SchedulerAddress string       `validate:"required,url"`
 	Port             int          `validate:"required,number"`
-	Client           *http.Client `validate:"required"`
+	HTTPClient       *http.Client `validate:"required"`
 	Scheme           string       `validate:"required"`
 	MaxConnections   int          `validate:"required,number"`
 }
@@ -40,19 +40,19 @@ type NodeInfo struct {
 	Scheme         string `json:"scheme" validate:"required"`
 }
 
-func NewNode(name, ipv4, scheme, scheduler string, port, maxConnections int) *Node {
-	return &Node{
+func NewClient(name, ipv4, scheme, scheduler string, port, maxConnections int) *Client {
+	return &Client{
 		Name:             name,
 		IPv4:             ipv4,
 		SchedulerAddress: scheduler,
 		Port:             port,
-		Client:           &http.Client{},
+		HTTPClient:       &http.Client{},
 		Scheme:           scheme,
 		MaxConnections:   maxConnections,
 	}
 }
 
-func (no *Node) Request(method string, resource string, headers map[string]string, body []byte) (*http.Response, error) {
+func (no *Client) Request(method string, resource string, headers map[string]string, body []byte) (*http.Response, error) {
 
 	req, _ := http.NewRequest(method, resource, bytes.NewBuffer(body))
 
@@ -60,10 +60,10 @@ func (no *Node) Request(method string, resource string, headers map[string]strin
 		req.Header.Set(k, v)
 	}
 
-	return no.Client.Do(req)
+	return no.HTTPClient.Do(req)
 }
 
-func (no *Node) Register() error {
+func (no *Client) Register() error {
 
 	var resp Response
 
@@ -110,7 +110,7 @@ func (no *Node) Register() error {
 }
 
 // add 1 node connection on the scheduler
-func (no *Node) AddConnection() error {
+func (no *Client) AddConnection() error {
 
 	var resp Response
 
@@ -146,7 +146,7 @@ func (no *Node) AddConnection() error {
 }
 
 // remove 1 node connection on the scheduler
-func (no *Node) RemoveConnection() error {
+func (no *Client) RemoveConnection() error {
 
 	var resp Response
 
@@ -182,7 +182,7 @@ func (no *Node) RemoveConnection() error {
 }
 
 // returns a map[string]interface{} with the node stat from the scheduler storage
-func (no *Node) Info() (*NodeInfo, error) {
+func (no *Client) Info() (*NodeInfo, error) {
 
 	var resp Response
 
@@ -231,16 +231,19 @@ func (no *Node) Info() (*NodeInfo, error) {
 //TODO: make the following method a routine "Notifier" that runs in background
 // 		and notifies as soon as items are created or downloaded
 // Notify scheduler that the current node has an item
-func (no *Node) NotifyItem(item, ops string) error {
+func (no *Client) NotifyItem(item string, ops int) error {
 
 	var resp Response
 	var resource string
 	var method string
 
-	if ops == "add" {
+	// 1 -> create
+	// 4 -> remove
+
+	if ops == 1 {
 		resource = fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "addNodeConnection", no.Name)
 		method = "PUT"
-	} else if ops == "remove" {
+	} else if ops == 4 {
 		resource = fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "removeNodeConnection", no.Name)
 		method = "DELETE"
 	} else {
@@ -277,7 +280,7 @@ func (no *Node) NotifyItem(item, ops string) error {
 }
 
 // Ask the scheduler to find a node to download the item
-func (no *Node) FindSource(item string) (*NodeInfo, error) {
+func (no *Client) FindSource(item string) (*NodeInfo, error) {
 
 	var resp Response
 	logrus.Debugln("scheduling dowload for item %s", item)

@@ -70,10 +70,10 @@ func mapArgs() {
 	schedulerAddress = viper.Get("node.scheduler.address").(string)
 }
 
-func registerNode(nodeObj *node.Node) {
+func registerNode(client *node.Client) {
 	logrus.Info("registering node... (will retry forever)")
 	for !node.Registered {
-		nodeObj.Register()
+		client.Register()
 		time.Sleep(time.Duration(2) * time.Second)
 	}
 	logrus.Info("registration completed.")
@@ -105,8 +105,8 @@ func exec(cmd *cobra.Command, args []string) {
 	}
 
 	validate := validator.New()
-	nodeObj := node.NewNode(name, ipv4, "http", schedulerAddress, port, maxConnections)
-	err := validate.Struct(nodeObj)
+	client := node.NewClient(name, ipv4, "http", schedulerAddress, port, maxConnections)
+	err := validate.Struct(client)
 	if err != nil {
 		logrus.Errorf("Error while validating user inputs or configuration file")
 		logrus.Debugln(err)
@@ -122,7 +122,7 @@ func exec(cmd *cobra.Command, args []string) {
 		Insecure: insecure,
 	}
 
-	serverObj := *node.NewServer(nodeObj, dataDir, uconf, dw, re)
+	serverObj := *node.NewServer(client, dataDir, uconf, dw, re)
 	err = validate.Struct(serverObj)
 	if err != nil {
 		logrus.Errorf("Error while validating user inputs or configuration file")
@@ -130,6 +130,6 @@ func exec(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	registerNode(nodeObj)
+	registerNode(client)
 	serverObj.Run()
 }

@@ -16,7 +16,7 @@ import (
 )
 
 type Server struct {
-	Node       *Node           `validate:"required"`
+	Node       *Client         `validate:"required"`
 	Upstream   *UpstreamConfig `validate:"required,dive"`
 	DataDir    string          `validate:"required"` // Add dir validator
 	Downloader *downloader.Downloader
@@ -28,7 +28,7 @@ type UpstreamConfig struct {
 	Insecure bool   `validate:"required"` // add boolean validator
 }
 
-func NewServer(nodeObj *Node,
+func NewServer(nodeObj *Client,
 	dataDir string,
 	uconf *UpstreamConfig,
 	dw *downloader.Downloader,
@@ -62,7 +62,7 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 			}
 
 			// HEAD request is necessary to see if the upstream allows us to download/serve certain content
-			headResp, err := runRequestCheck(srv.Node.Client, headReq)
+			headResp, err := runRequestCheck(srv.Node.HTTPClient, headReq)
 			if err != nil {
 				logrus.Warnln("falling back to upstream, because of error:", err)
 				goto upstream
