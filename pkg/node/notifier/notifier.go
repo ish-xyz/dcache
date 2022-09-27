@@ -40,13 +40,20 @@ func (nt *Notifier) Watch() error {
 					return
 				}
 
+				item := filepath.Base(event.Name)
+				var err error
+
 				if event.Op == 1 {
-					nt.Logger.Infof("CREATE event received for %s", filepath.Base(event.Name))
-					nt.NodeClient.NotifyItem(filepath.Base(event.Name), int(event.Op))
+					nt.Logger.Infof("CREATE event received for %s", item)
+					err = nt.NodeClient.NotifyItem(item, int(event.Op))
 
 				} else if event.Op == 4 {
-					nt.Logger.Infof("REMOVE event received for %s", filepath.Base(event.Name))
-					nt.NodeClient.NotifyItem(filepath.Base(event.Name), int(event.Op))
+					nt.Logger.Infof("REMOVE event received for %s", item)
+					err = nt.NodeClient.NotifyItem(item, int(event.Op))
+				}
+
+				if err != nil {
+					nt.Logger.Errorf("failed to notify (%s) item %s to scheduler", item, event.Op.String())
 				}
 
 			case err, ok := <-watcher.Errors:
