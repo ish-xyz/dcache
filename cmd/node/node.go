@@ -111,7 +111,7 @@ func exec(cmd *cobra.Command, args []string) {
 	client := node.NewClient(
 		name,
 		schedulerAddress,
-		logger.WithField("component", "nodeclient"),
+		logger.WithField("component", "node.client"),
 	)
 	err := validate.Struct(client)
 	if err != nil {
@@ -121,12 +121,12 @@ func exec(cmd *cobra.Command, args []string) {
 	}
 
 	dw := downloader.NewDownloader(
-		logger.WithField("component", "downloader"),
+		logger.WithField("component", "node.downloader"),
 	)
 	nt := notifier.NewNotifier(
 		client,
 		dataDir,
-		logger.WithField("component", "notifier"),
+		logger.WithField("component", "node.notifier"),
 	)
 
 	// _ := gc.NewGC(
@@ -152,6 +152,7 @@ func exec(cmd *cobra.Command, args []string) {
 		maxConnections,
 		dw,
 		re,
+		logger.WithField("component", "node.server"),
 	)
 	err = validate.Struct(nodeObj)
 	if err != nil {

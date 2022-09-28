@@ -31,6 +31,7 @@ type Node struct {
 	MaxConnections int                    `validate:"required,number"`
 	Downloader     *downloader.Downloader `validate:"required"`
 	Regex          *regexp.Regexp         `validate:"required"`
+	Logger         *logrus.Entry          `validate:"required"`
 }
 
 func NewNode(
@@ -43,6 +44,7 @@ func NewNode(
 	maxconn int,
 	dw *downloader.Downloader,
 	re *regexp.Regexp,
+	lg *logrus.Entry,
 ) *Node {
 
 	return &Node{
@@ -55,6 +57,7 @@ func NewNode(
 		MaxConnections: maxconn,
 		Downloader:     dw,
 		Regex:          re,
+		Logger:         lg,
 	}
 }
 
@@ -64,7 +67,7 @@ func (no *Node) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, pro
 
 		if no.Regex.MatchString(r.RequestURI) && r.Method == "GET" {
 
-			logrus.Debugln("regex matched for ", r.RequestURI)
+			no.Logger.Debugln("regex matched for ", r.RequestURI)
 
 			upstreamUrl := fmt.Sprintf("%s%s", no.Upstream.Address, strings.TrimPrefix(r.RequestURI, proxyPath))
 			upstreamHost := strings.Split(no.Upstream.Address, "://")[1]
@@ -72,40 +75,40 @@ func (no *Node) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, pro
 			// prepare HEAD request
 			headReq, err := copyRequest(r.Context(), r, upstreamUrl, upstreamHost, "HEAD")
 			if err != nil {
-				logrus.Errorln("Error parsing http resource for head request:", err)
+				no.Logger.Errorln("Error parsing http resource for head request:", err)
 				goto upstream
 			}
 
 			// HEAD request is necessary to see if the upstream allows us to download/serve certain content
 			headResp, err := runRequestCheck(no.Client.HTTPClient, headReq)
 			if err != nil {
-				logrus.Warnln("falling back to upstream, because of error:", err)
+				no.Logger.Warnln("falling back to upstream, because of error:", err)
 				goto upstream
 			}
 
 			// scenario 1: item is already present in the local cache of the node
 			item := generateHash(r.URL, headResp.Header["Etag"][0])
-			logrus.Debugf("item name: %s", item)
+			no.Logger.Debugf("item name: %s", item)
 
 			filepath := fmt.Sprintf("%s/%s", no.DataDir, item)
 			if _, err := os.Stat(filepath); err == nil {
 				selfInfo, err := no.Client.Info()
 				if err != nil {
-					logrus.Errorln("failed to contact scheduler to get node info, fallingback to upstream")
+					no.Logger.Errorln("failed to contact scheduler to get node info, fallingback to upstream")
 					goto upstream
 				}
 
-				logrus.Debugln("checking connections, retrieved node info", selfInfo)
+				no.Logger.Debugln("checking connections, retrieved node info", selfInfo)
 				if selfInfo.Connections+1 < selfInfo.MaxConnections {
 					no.ServeSingleFile(w, r, filepath)
 					return
 				}
-				logrus.Warnln("max connections for peer already reached, redirecting to upstream")
+				no.Logger.Warnln("max connections for peer already reached, redirecting to upstream")
 				goto upstream // TODO: remove when scenario 2 it's implemented
 			}
 
-			logrus.Debugf("file %s not found in local cache, redirecting to upstream", item)
-			logrus.Debugf("heating cache for next requests")
+			no.Logger.Debugf("file %s not found in local cache, redirecting to upstream", item)
+			no.Logger.Debugf("heating cache for next requests")
 
 			// Note for myself: can't use r.Context() because the download
 			// 	will get most likely processed after this request has finished and the contex canceled
@@ -116,12 +119,12 @@ func (no *Node) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, pro
 		}
 
 	upstream:
-		logrus.Infof("request for %s is going to upstream", r.URL.String())
+		no.Logger.Infof("request for %s is going to upstream", r.URL.String())
 		proxy.ServeHTTP(w, r)
 		//return
 
 		// runFakeProxy:
-		// 	logrus.Infof("request for %s is being cached", r.URL.String())
+		// 	no.Logger.Infof("request for %s is being cached", r.URL.String())
 		// 	fakeProxy.ServeHTTP(w, r)
 	}
 }
@@ -130,14 +133,14 @@ func (no *Node) ServeSingleFile(w http.ResponseWriter, r *http.Request, filePath
 
 	err := no.Client.AddConnection()
 	if err != nil {
-		logrus.Errorln("failed to add connection to scheduler")
+		no.Logger.Errorln("failed to add connection to scheduler")
 	}
 
 	http.ServeFile(w, r, filePath)
 
 	err = no.Client.RemoveConnection()
 	if err != nil {
-		logrus.Errorln("failed to remove connection from scheduler")
+		no.Logger.Errorln("failed to remove connection from scheduler")
 	}
 
 }
@@ -153,7 +156,7 @@ func (no *Node) Run() error {
 	}
 	proxy := newCustomProxy(url, proxyPath)
 
-	logrus.Infof("starting up server on %s", address)
+	no.Logger.Infof("starting up server on %s", address)
 	http.HandleFunc(fmt.Sprintf("%s/", proxyPath), no.ProxyRequestHandler(proxy, fakeProxy, proxyPath))
 
 	log.Fatal(http.ListenAndServe(address, nil))
