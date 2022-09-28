@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -14,6 +15,7 @@ type Downloader struct {
 	KillSwitch bool
 	Client     *http.Client
 	Logger     *logrus.Entry
+	GC         *GC
 }
 
 type Item struct {
@@ -21,13 +23,24 @@ type Item struct {
 	FilePath string
 }
 
-func NewDownloader(log *logrus.Entry) *Downloader {
+func NewDownloader(log *logrus.Entry, dataDir string, maxAtime, interval time.Duration, maxDiskUsage, minDiskFree int) *Downloader {
+
+	gc := &GC{
+		MaxAtimeAge:  maxAtime,
+		MaxDiskUsage: maxDiskUsage,
+		MinDiskFree:  minDiskFree,
+		Interval:     interval,
+		DataDir:      dataDir,
+		Logger:       log.WithField("component", "node.downloader.gc"),
+		AtimeStore:   make(map[string]int64),
+	}
 
 	return &Downloader{
 		Queue:      make(chan *Item),
 		KillSwitch: false,
 		Logger:     log,
 		Client:     &http.Client{},
+		GC:         gc,
 	}
 }
 
@@ -82,6 +95,7 @@ func (d *Downloader) Run() error {
 			if err != nil {
 				return fmt.Errorf("failed to delete corrupt file %s with error %v", lastItem.FilePath, err)
 			}
+			continue
 		}
 		d.Logger.Infof("cached %s in %s", lastItem.Req.URL.String(), lastItem.FilePath)
 	}

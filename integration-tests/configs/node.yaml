@@ -9,4 +9,8 @@ node:
     regex: ".*distribution.*"
   scheduler:
     address: http://scheduler:8000
-  
+  gc:
+    maxAtimeAge: 3m
+    interval: 5s
+    maxDiskUsage: 100G
+    minDiskFree: 20G

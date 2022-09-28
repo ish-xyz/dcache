@@ -8,6 +8,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -34,6 +35,7 @@ type Node struct {
 	Logger         *logrus.Entry          `validate:"required"`
 }
 
+//TODO this can probably be improved, struct is too big and the args on this function are too much
 func NewNode(
 	nodeObj *node.Client,
 	uconf *UpstreamConfig,
@@ -65,6 +67,7 @@ func NewNode(
 func (no *Node) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, proxyPath string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 
+		// TODO: what happens if we allow multiple HTTP methods
 		if no.Regex.MatchString(r.RequestURI) && r.Method == "GET" {
 
 			no.Logger.Debugln("regex matched for ", r.RequestURI)
@@ -129,14 +132,16 @@ func (no *Node) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, pro
 	}
 }
 
-func (no *Node) ServeSingleFile(w http.ResponseWriter, r *http.Request, filePath string) {
+func (no *Node) ServeSingleFile(w http.ResponseWriter, r *http.Request, itemPath string) {
 
 	err := no.Client.AddConnection()
 	if err != nil {
 		no.Logger.Errorln("failed to add connection to scheduler")
 	}
 
-	http.ServeFile(w, r, filePath)
+	no.Downloader.GC.UpdateAtime(filepath.Base(itemPath))
+
+	http.ServeFile(w, r, itemPath)
 
 	err = no.Client.RemoveConnection()
 	if err != nil {

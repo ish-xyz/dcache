@@ -16,11 +16,17 @@ import (
 )
 
 var (
-	verbose          bool
-	scheme           = "http"
-	insecure         bool // insecure upstream connection
-	port             int
-	maxConnections   int
+	verbose        bool
+	scheme         = "http"
+	insecure       bool // insecure upstream connection
+	port           int
+	maxConnections int
+
+	gcMaxAtimeAge  string
+	gcInterval     string
+	gcMaxDiskUsage int
+	gcMinDiskFree  int
+
 	name             string
 	ipv4             string
 	dataDir          string
@@ -59,9 +65,14 @@ func CLI() {
 	viper.BindPFlag("node.scheduler.address", Cmd.PersistentFlags().Lookup("scheduler-address"))
 	viper.BindPFlag("node.verbose", Cmd.PersistentFlags().Lookup("verbose"))
 
+	viper.BindPFlag("node.gc.maxAtimeAge", Cmd.PersistentFlags().Lookup("gc-max-atime-age"))
+	viper.BindPFlag("node.gc.interval", Cmd.PersistentFlags().Lookup("gc-interval"))
+	//viper.BindPFlag("node.gc.maxStorage", Cmd.PersistentFlags().Lookup("gc-max-disk-usage"))
+	//viper.BindPFlag("node.gc.minDiskFree", Cmd.PersistentFlags().Lookup("gc-min-disk-free"))
+
 }
 
-func mapArgs() {
+func argumentsMapping() {
 	name = viper.Get("node.name").(string)
 	ipv4 = viper.Get("node.ipv4").(string)
 	port = viper.Get("node.port").(int)
@@ -93,10 +104,11 @@ func exec(cmd *cobra.Command, args []string) {
 			logrus.Errorf("fatal error reading config file: %w", err)
 			return
 		}
-		mapArgs()
+		argumentsMapping()
 	}
 
 	if verbose {
+		logger.SetLevel(logrus.DebugLevel)
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
@@ -122,19 +134,18 @@ func exec(cmd *cobra.Command, args []string) {
 
 	dw := downloader.NewDownloader(
 		logger.WithField("component", "node.downloader"),
+		dataDir,
+		time.Duration(30),
+		time.Duration(5),
+		gcMaxDiskUsage,
+		gcMinDiskFree,
 	)
+
 	nt := notifier.NewNotifier(
 		client,
 		dataDir,
 		logger.WithField("component", "node.notifier"),
 	)
-
-	// _ := gc.NewGC(
-	// 	dataDir,
-	// 	120,
-	// 	60,
-	// 	logger.WithField("component", "gc"),
-	// )
 
 	//TODO: add nt & dw validation
 	re := regexp.MustCompile(proxyRegex)
@@ -163,7 +174,10 @@ func exec(cmd *cobra.Command, args []string) {
 
 	// Run programs
 	registerNode(client)
+
+	logrus.Infoln("starting daemons...")
 	go dw.Run()
 	go nt.Watch()
+	go dw.GC.Run()
 	nodeObj.Run()
 }
