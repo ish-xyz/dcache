@@ -22,13 +22,14 @@ type Response struct {
 }
 
 type Client struct {
-	Name             string       `validate:"required,alphanum"`
-	IPv4             string       `validate:"required,ipv4"`
-	SchedulerAddress string       `validate:"required,url"`
-	Port             int          `validate:"required,number"`
-	HTTPClient       *http.Client `validate:"required"`
-	Scheme           string       `validate:"required"`
-	MaxConnections   int          `validate:"required,number"`
+	Name             string        `validate:"required,alphanum"`
+	IPv4             string        `validate:"required,ipv4"`
+	SchedulerAddress string        `validate:"required,url"`
+	Port             int           `validate:"required,number"`
+	HTTPClient       *http.Client  `validate:"required"`
+	Scheme           string        `validate:"required"`
+	MaxConnections   int           `validate:"required,number"`
+	Logger           *logrus.Entry `validate:"required"`
 }
 
 type NodeInfo struct {
@@ -40,7 +41,12 @@ type NodeInfo struct {
 	Scheme         string `json:"scheme" validate:"required"`
 }
 
-func NewClient(name, ipv4, scheme, scheduler string, port, maxConnections int) *Client {
+func NewClient(
+	name, ipv4, scheme, scheduler string,
+	port, maxConnections int,
+	lg *logrus.Entry,
+) *Client {
+
 	return &Client{
 		Name:             name,
 		IPv4:             ipv4,
@@ -49,6 +55,7 @@ func NewClient(name, ipv4, scheme, scheduler string, port, maxConnections int) *
 		HTTPClient:       &http.Client{},
 		Scheme:           scheme,
 		MaxConnections:   maxConnections,
+		Logger:           lg,
 	}
 }
 
@@ -81,14 +88,14 @@ func (no *Client) Register() error {
 		return err
 	}
 
-	logrus.Debugln("registering node to: ", resource)
-	logrus.Debugln("sending data %s", string(payload))
+	no.Logger.Debugln("registering node to: ", resource)
+	no.Logger.Debugln("sending data %s", string(payload))
 
 	headers := map[string]string{"Content-Type": "application/json"}
 
 	rawResp, err := no.Request("POST", resource, headers, payload)
 	if err != nil {
-		logrus.Debugln("error requesting resource: %s", resource)
+		no.Logger.Debugln("error requesting resource: %s", resource)
 		return err
 	}
 	defer rawResp.Body.Close()
@@ -100,12 +107,12 @@ func (no *Client) Register() error {
 	}
 
 	if resp.Status != "success" {
-		logrus.Debugln("error received from scheduler while registering: %s", resp.Message)
+		no.Logger.Debugln("error received from scheduler while registering: %s", resp.Message)
 		return fmt.Errorf(resp.Message)
 	}
 
 	Registered = true
-	logrus.Infoln("node registration completed.")
+	no.Logger.Infoln("node registration completed.")
 	return nil
 }
 
@@ -116,7 +123,7 @@ func (no *Client) AddConnection() error {
 
 	resource := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "addNodeConnection", no.Name)
 
-	logrus.Debugln("adding 1 connection")
+	no.Logger.Debugln("adding 1 connection")
 
 	headers := map[string]string{
 		"Content-Type": "application/json",
@@ -124,7 +131,7 @@ func (no *Client) AddConnection() error {
 
 	rawResp, err := no.Request("PUT", resource, headers, nil)
 	if err != nil {
-		logrus.Debugln("error requesting resource: %s", resource)
+		no.Logger.Debugln("error requesting resource: %s", resource)
 		return err
 	}
 	defer rawResp.Body.Close()
@@ -132,16 +139,16 @@ func (no *Client) AddConnection() error {
 	body, _ := ioutil.ReadAll(rawResp.Body)
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		logrus.Debugln("error decoding payload:", err)
+		no.Logger.Debugln("error decoding payload:", err)
 		return err
 	}
 
 	if resp.Status != "success" {
-		logrus.Debugln(resp.Message)
+		no.Logger.Debugln(resp.Message)
 		return fmt.Errorf(resp.Message)
 	}
 
-	logrus.Debugln("connection added successfully")
+	no.Logger.Debugln("connection added successfully")
 	return nil
 }
 
@@ -152,7 +159,7 @@ func (no *Client) RemoveConnection() error {
 
 	resource := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "removeNodeConnection", no.Name)
 
-	logrus.Debugln("removing 1 connection")
+	no.Logger.Debugln("removing 1 connection")
 
 	headers := map[string]string{
 		"Content-Type": "application/json",
@@ -160,7 +167,7 @@ func (no *Client) RemoveConnection() error {
 
 	rawResp, err := no.Request("DELETE", resource, headers, nil)
 	if err != nil {
-		logrus.Debugln("error requesting resource: %s", resource)
+		no.Logger.Debugln("error requesting resource: %s", resource)
 		return err
 	}
 	defer rawResp.Body.Close()
@@ -168,16 +175,16 @@ func (no *Client) RemoveConnection() error {
 	body, _ := ioutil.ReadAll(rawResp.Body)
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		logrus.Debugln("error decoding payload:", err, string(body))
+		no.Logger.Debugln("error decoding payload:", err, string(body))
 		return err
 	}
 
 	if resp.Status != "success" {
-		logrus.Debugln("error received from scheduler: %s", resp.Message)
+		no.Logger.Debugln("error received from scheduler: %s", resp.Message)
 		return fmt.Errorf(resp.Message)
 	}
 
-	logrus.Debugln("connection removed successfully")
+	no.Logger.Debugln("connection removed successfully")
 	return nil
 }
 
@@ -188,7 +195,7 @@ func (no *Client) Info() (*NodeInfo, error) {
 
 	resource := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "getNode", no.Name)
 
-	logrus.Debugln("getting node information")
+	no.Logger.Debugln("getting node information")
 
 	headers := map[string]string{
 		"Content-Type": "application/json",
@@ -196,7 +203,7 @@ func (no *Client) Info() (*NodeInfo, error) {
 
 	rawResp, err := no.Request("GET", resource, headers, nil)
 	if err != nil {
-		logrus.Debugln("error requesting resource: %s", resource)
+		no.Logger.Debugln("error requesting resource: %s", resource)
 		return nil, err
 	}
 	defer rawResp.Body.Close()
@@ -204,16 +211,16 @@ func (no *Client) Info() (*NodeInfo, error) {
 	body, _ := ioutil.ReadAll(rawResp.Body)
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		logrus.Warnln("error decoding payload:", err)
+		no.Logger.Warnln("error decoding payload:", err)
 		return nil, err
 	}
 
 	if resp.Status != "success" {
-		logrus.Debugln("error received from scheduler: %s", resp.Message)
+		no.Logger.Debugln("error received from scheduler: %s", resp.Message)
 		return nil, err
 	}
 
-	logrus.Debugln("retrieved data:", resp.Data["node"].(map[string]interface{}))
+	no.Logger.Debugln("retrieved data:", resp.Data["node"].(map[string]interface{}))
 
 	//TODO: find a cleaner way
 	nodeInfo := &NodeInfo{
@@ -237,7 +244,7 @@ func (no *Client) NotifyItem(item string, ops int) error {
 
 	// 1 -> create
 	// 4 -> remove
-	logrus.Debugf("notifying to scheduler: ops -> %d, item -> %s", ops, item)
+	no.Logger.Debugf("notifying to scheduler: ops -> %d, item -> %s", ops, item)
 	if ops == 1 {
 		resource = fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "addNodeConnection", no.Name)
 		method = "PUT"
@@ -254,7 +261,7 @@ func (no *Client) NotifyItem(item string, ops int) error {
 
 	rawResp, err := no.Request(method, resource, headers, nil)
 	if err != nil {
-		logrus.Debugln("error requesting resource: %s", resource)
+		no.Logger.Debugln("error requesting resource: %s", resource)
 		return err
 	}
 	defer rawResp.Body.Close()
@@ -262,12 +269,12 @@ func (no *Client) NotifyItem(item string, ops int) error {
 	body, _ := ioutil.ReadAll(rawResp.Body)
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		logrus.Debugln("error decoding payload:", err)
+		no.Logger.Debugln("error decoding payload:", err)
 		return err
 	}
 
 	if resp.Status != "success" {
-		logrus.Debugln("error received from scheduler: %s", resp.Message)
+		no.Logger.Debugln("error received from scheduler: %s", resp.Message)
 		return err
 	}
 
@@ -278,7 +285,7 @@ func (no *Client) NotifyItem(item string, ops int) error {
 func (no *Client) FindSource(item string) (*NodeInfo, error) {
 
 	var resp Response
-	logrus.Debugln("scheduling dowload for item %s", item)
+	no.Logger.Debugln("scheduling dowload for item %s", item)
 
 	resource := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "schedule", item)
 	headers := map[string]string{
@@ -287,7 +294,7 @@ func (no *Client) FindSource(item string) (*NodeInfo, error) {
 
 	rawResp, err := no.Request("GET", resource, headers, nil)
 	if err != nil {
-		logrus.Debugln("error requesting resource: %s", resource)
+		no.Logger.Debugln("error requesting resource: %s", resource)
 		return nil, err
 	}
 	defer rawResp.Body.Close()
@@ -295,12 +302,12 @@ func (no *Client) FindSource(item string) (*NodeInfo, error) {
 	body, _ := ioutil.ReadAll(rawResp.Body)
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		logrus.Debugln("error decoding payload:", err)
+		no.Logger.Debugln("error decoding payload:", err)
 		return nil, err
 	}
 
 	if resp.Status != "success" || rawResp.StatusCode != 200 {
-		logrus.Debugln("error received from scheduler: %s", resp.Message)
+		no.Logger.Debugln("error received from scheduler: %s", resp.Message)
 		return nil, err
 	}
 
@@ -312,7 +319,7 @@ func (no *Client) FindSource(item string) (*NodeInfo, error) {
 		Scheme:      resp.Data["node"].(map[string]interface{})["scheme"].(string),
 	}
 
-	logrus.Debugln("succcessfully found node %s", nodeInfo.Name)
+	no.Logger.Debugln("succcessfully found node %s", nodeInfo.Name)
 
 	return nodeInfo, nil
 }

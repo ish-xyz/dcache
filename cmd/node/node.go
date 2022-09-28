@@ -107,7 +107,15 @@ func exec(cmd *cobra.Command, args []string) {
 	}
 
 	validate := validator.New()
-	client := node.NewClient(name, ipv4, "http", schedulerAddress, port, maxConnections)
+	client := node.NewClient(
+		name,
+		ipv4,
+		"http",
+		schedulerAddress,
+		port,
+		maxConnections,
+		logger.WithField("component", "nodeclient"),
+	)
 	err := validate.Struct(client)
 	if err != nil {
 		logrus.Errorf("Error while validating user inputs or configuration file")
@@ -115,7 +123,6 @@ func exec(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	re := regexp.MustCompile(proxyRegex)
 	dw := downloader.NewDownloader(
 		logger.WithField("component", "downloader"),
 	)
@@ -124,12 +131,14 @@ func exec(cmd *cobra.Command, args []string) {
 		dataDir,
 		logger.WithField("component", "notifier"),
 	)
+
+	//TODO: add nt & dw validation
+	re := regexp.MustCompile(proxyRegex)
 	uconf := &server.UpstreamConfig{
 		Address:  upstream,
 		Insecure: insecure,
 	}
-
-	serverObj := *server.NewServer(client, dataDir, uconf, dw, nt, re)
+	serverObj := *server.NewServer(client, dataDir, uconf, re, dw)
 	err = validate.Struct(serverObj)
 	if err != nil {
 		logrus.Errorf("Error while validating user inputs or configuration file")
@@ -137,6 +146,11 @@ func exec(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	// Run programs
 	registerNode(client)
+
+	go dw.Run()
+	go nt.Watch()
+
 	serverObj.Run()
 }

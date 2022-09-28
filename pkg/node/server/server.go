@@ -13,17 +13,15 @@ import (
 
 	"github.com/ish-xyz/dcache/pkg/node"
 	"github.com/ish-xyz/dcache/pkg/node/downloader"
-	"github.com/ish-xyz/dcache/pkg/node/notifier"
 	"github.com/sirupsen/logrus"
 )
 
 type Server struct {
-	Node       *node.Client    `validate:"required"`
-	Upstream   *UpstreamConfig `validate:"required,dive"`
-	DataDir    string          `validate:"required"` // Add dir validator
-	Downloader *downloader.Downloader
-	Notifier   *notifier.Notifier
-	Regex      *regexp.Regexp `validate:"required"`
+	Node       *node.Client           `validate:"required"`
+	Upstream   *UpstreamConfig        `validate:"required,dive"`
+	DataDir    string                 `validate:"required"` // Add dir validator
+	Downloader *downloader.Downloader `validate:"required"`
+	Regex      *regexp.Regexp         `validate:"required"`
 }
 
 type UpstreamConfig struct {
@@ -34,17 +32,15 @@ type UpstreamConfig struct {
 func NewServer(nodeObj *node.Client,
 	dataDir string,
 	uconf *UpstreamConfig,
-	dw *downloader.Downloader,
-	nt *notifier.Notifier,
-	re *regexp.Regexp) *Server {
+	re *regexp.Regexp,
+	dw *downloader.Downloader) *Server {
 
 	return &Server{
 		Node:       nodeObj,
 		DataDir:    strings.TrimSuffix(dataDir, "/"),
 		Upstream:   uconf,
-		Downloader: dw,
-		Notifier:   nt,
 		Regex:      re,
+		Downloader: dw,
 	}
 }
 
@@ -147,9 +143,6 @@ func (srv *Server) Run() error {
 
 	logrus.Infof("starting up server on %s", address)
 	http.HandleFunc(fmt.Sprintf("%s/", proxyPath), srv.ProxyRequestHandler(proxy, fakeProxy, proxyPath))
-
-	go srv.Downloader.Watch()
-	go srv.Notifier.Watch()
 
 	log.Fatal(http.ListenAndServe(address, nil))
 	return nil

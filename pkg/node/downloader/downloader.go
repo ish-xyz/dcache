@@ -67,7 +67,7 @@ func (d *Downloader) download(item *Item) error {
 	return err
 }
 
-func (d *Downloader) Watch() error {
+func (d *Downloader) Run() error {
 	for {
 		if d.KillSwitch {
 			break
