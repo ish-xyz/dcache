@@ -135,8 +135,8 @@ func exec(cmd *cobra.Command, args []string) {
 	dw := downloader.NewDownloader(
 		logger.WithField("component", "node.downloader"),
 		dataDir,
-		time.Duration(30),
-		time.Duration(5),
+		time.Duration(30)*time.Second,
+		time.Duration(5)*time.Second,
 		gcMaxDiskUsage,
 		gcMinDiskFree,
 	)

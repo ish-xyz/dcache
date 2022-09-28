@@ -32,18 +32,25 @@ func (gc *GC) Run() {
 			continue
 		}
 		for _, fi := range files {
+			gc.Logger.Debugln("checking file %s", fi.Name())
+			if _, ok := gc.AtimeStore[fi.Name()]; !ok {
+				gc.Logger.Warningf("can't find file %s on Atime memory store", fi.Name())
+				continue
+			}
+
 			fileAtimeAge := time.Now().Unix() - gc.AtimeStore[fi.Name()]
 			if fileAtimeAge > int64(gc.MaxAtimeAge.Seconds()) {
 				gc.Logger.Debugln("deleting file:", fi.Name())
 				filepath := fmt.Sprintf("%s/%s", gc.DataDir, fi.Name())
 				err := os.Remove(filepath)
-				if err != nil {
-					gc.Logger.Errorf("failed to remove file %s, error: %v", filepath, err)
+				if err == nil {
+					delete(gc.AtimeStore, fi.Name())
 				}
+				gc.Logger.Errorf("failed to remove file %s, error: %v", filepath, err)
 				continue
 			}
 			gc.Logger.Debugln("file is too young, keeping it ->", fi.Name())
 		}
-		time.Sleep(gc.Interval * time.Second)
+		time.Sleep(gc.Interval)
 	}
 }

@@ -53,7 +53,7 @@ func NewNode(
 		Client:         nodeObj,
 		Upstream:       uconf,
 		DataDir:        strings.TrimSuffix(dataDir, "/"),
-		Scheme:         scheme,
+		Scheme:         strings.TrimSuffix(scheme, "://"),
 		IPv4:           ipv4,
 		Port:           port,
 		MaxConnections: maxconn,
