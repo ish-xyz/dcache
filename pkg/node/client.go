@@ -23,12 +23,8 @@ type Response struct {
 
 type Client struct {
 	Name             string        `validate:"required,alphanum"`
-	IPv4             string        `validate:"required,ipv4"`
 	SchedulerAddress string        `validate:"required,url"`
-	Port             int           `validate:"required,number"`
 	HTTPClient       *http.Client  `validate:"required"`
-	Scheme           string        `validate:"required"`
-	MaxConnections   int           `validate:"required,number"`
 	Logger           *logrus.Entry `validate:"required"`
 }
 
@@ -42,19 +38,15 @@ type NodeInfo struct {
 }
 
 func NewClient(
-	name, ipv4, scheme, scheduler string,
-	port, maxConnections int,
+	name string,
+	scheduler string,
 	lg *logrus.Entry,
 ) *Client {
 
 	return &Client{
 		Name:             name,
-		IPv4:             ipv4,
 		SchedulerAddress: scheduler,
-		Port:             port,
 		HTTPClient:       &http.Client{},
-		Scheme:           scheme,
-		MaxConnections:   maxConnections,
 		Logger:           lg,
 	}
 }
@@ -70,18 +62,18 @@ func (no *Client) Request(method string, resource string, headers map[string]str
 	return no.HTTPClient.Do(req)
 }
 
-func (no *Client) Register() error {
+func (no *Client) Register(ipv4, scheme string, port, maxconn int) error {
 
 	var resp Response
 
 	resource := fmt.Sprintf("%s/%s/%s", no.SchedulerAddress, apiVersion, "registerNode")
 	nodeInfo := &NodeInfo{
 		Name:           no.Name,
-		IPv4:           no.IPv4,
-		Port:           no.Port,
-		Scheme:         no.Scheme,
+		IPv4:           ipv4,
+		Port:           port,
+		Scheme:         scheme,
 		Connections:    0,
-		MaxConnections: no.MaxConnections,
+		MaxConnections: maxconn,
 	}
 	payload, err := json.Marshal(nodeInfo)
 	if err != nil {

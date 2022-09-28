@@ -16,44 +16,58 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type Server struct {
-	Node       *node.Client           `validate:"required"`
-	Upstream   *UpstreamConfig        `validate:"required,dive"`
-	DataDir    string                 `validate:"required"` // Add dir validator
-	Downloader *downloader.Downloader `validate:"required"`
-	Regex      *regexp.Regexp         `validate:"required"`
-}
-
 type UpstreamConfig struct {
 	Address  string `validate:"required,url"`
 	Insecure bool   `validate:"required"` // add boolean validator
 }
 
-func NewServer(nodeObj *node.Client,
-	dataDir string,
-	uconf *UpstreamConfig,
-	re *regexp.Regexp,
-	dw *downloader.Downloader) *Server {
+type Node struct {
+	Client         *node.Client           `validate:"required"`
+	Upstream       *UpstreamConfig        `validate:"required,dive"`
+	DataDir        string                 `validate:"required"` // Add dir validator
+	Scheme         string                 `validate:"required"`
+	IPv4           string                 `validate:"required,ipv4"`
+	Port           int                    `validate:"required,number"`
+	MaxConnections int                    `validate:"required,number"`
+	Downloader     *downloader.Downloader `validate:"required"`
+	Regex          *regexp.Regexp         `validate:"required"`
+}
 
-	return &Server{
-		Node:       nodeObj,
-		DataDir:    strings.TrimSuffix(dataDir, "/"),
-		Upstream:   uconf,
-		Regex:      re,
-		Downloader: dw,
+func NewNode(
+	nodeObj *node.Client,
+	uconf *UpstreamConfig,
+	dataDir,
+	scheme,
+	ipv4 string,
+	port,
+	maxconn int,
+	dw *downloader.Downloader,
+	re *regexp.Regexp,
+) *Node {
+
+	return &Node{
+		Client:         nodeObj,
+		Upstream:       uconf,
+		DataDir:        strings.TrimSuffix(dataDir, "/"),
+		Scheme:         scheme,
+		IPv4:           ipv4,
+		Port:           port,
+		MaxConnections: maxconn,
+		Downloader:     dw,
+		Regex:          re,
 	}
 }
 
 // ProxyRequestHandler handles the http request using proxy
-func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, proxyPath string) func(http.ResponseWriter, *http.Request) {
+func (no *Node) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, proxyPath string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		if srv.Regex.MatchString(r.RequestURI) && r.Method == "GET" {
+		if no.Regex.MatchString(r.RequestURI) && r.Method == "GET" {
 
 			logrus.Debugln("regex matched for ", r.RequestURI)
 
-			upstreamUrl := fmt.Sprintf("%s%s", srv.Upstream.Address, strings.TrimPrefix(r.RequestURI, proxyPath))
-			upstreamHost := strings.Split(srv.Upstream.Address, "://")[1]
+			upstreamUrl := fmt.Sprintf("%s%s", no.Upstream.Address, strings.TrimPrefix(r.RequestURI, proxyPath))
+			upstreamHost := strings.Split(no.Upstream.Address, "://")[1]
 
 			// prepare HEAD request
 			headReq, err := copyRequest(r.Context(), r, upstreamUrl, upstreamHost, "HEAD")
@@ -63,7 +77,7 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 			}
 
 			// HEAD request is necessary to see if the upstream allows us to download/serve certain content
-			headResp, err := runRequestCheck(srv.Node.HTTPClient, headReq)
+			headResp, err := runRequestCheck(no.Client.HTTPClient, headReq)
 			if err != nil {
 				logrus.Warnln("falling back to upstream, because of error:", err)
 				goto upstream
@@ -73,9 +87,9 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 			item := generateHash(r.URL, headResp.Header["Etag"][0])
 			logrus.Debugf("item name: %s", item)
 
-			filepath := fmt.Sprintf("%s/%s", srv.DataDir, item)
+			filepath := fmt.Sprintf("%s/%s", no.DataDir, item)
 			if _, err := os.Stat(filepath); err == nil {
-				selfInfo, err := srv.Node.Info()
+				selfInfo, err := no.Client.Info()
 				if err != nil {
 					logrus.Errorln("failed to contact scheduler to get node info, fallingback to upstream")
 					goto upstream
@@ -83,7 +97,7 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 
 				logrus.Debugln("checking connections, retrieved node info", selfInfo)
 				if selfInfo.Connections+1 < selfInfo.MaxConnections {
-					srv.ServeFile(w, r, filepath)
+					no.ServeSingleFile(w, r, filepath)
 					return
 				}
 				logrus.Warnln("max connections for peer already reached, redirecting to upstream")
@@ -96,7 +110,7 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 			// Note for myself: can't use r.Context() because the download
 			// 	will get most likely processed after this request has finished and the contex canceled
 			upstreamReq, _ := copyRequest(context.TODO(), r, upstreamUrl, upstreamHost, "GET")
-			srv.Downloader.Push(upstreamReq, filepath)
+			no.Downloader.Push(upstreamReq, filepath)
 
 			goto upstream
 		}
@@ -112,37 +126,35 @@ func (srv *Server) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, 
 	}
 }
 
-func (srv *Server) ServeFile(w http.ResponseWriter, r *http.Request, filePath string) {
+func (no *Node) ServeSingleFile(w http.ResponseWriter, r *http.Request, filePath string) {
 
-	err := srv.Node.AddConnection()
+	err := no.Client.AddConnection()
 	if err != nil {
 		logrus.Errorln("failed to add connection to scheduler")
 	}
 
 	http.ServeFile(w, r, filePath)
 
-	err = srv.Node.RemoveConnection()
+	err = no.Client.RemoveConnection()
 	if err != nil {
 		logrus.Errorln("failed to remove connection from scheduler")
 	}
 
 }
 
-func (srv *Server) Run() error {
+func (no *Node) Run() error {
 
-	// init proxy
-	url, err := url.Parse(srv.Upstream.Address)
+	proxyPath := "/proxy"
+	address := fmt.Sprintf("%s:%d", no.IPv4, no.Port)
+	fakeProxy := newFakeProxy()
+	url, err := url.Parse(no.Upstream.Address)
 	if err != nil {
 		return err
 	}
-
-	proxyPath := "/proxy"
-	fakeProxy := newFakeProxy()
 	proxy := newCustomProxy(url, proxyPath)
-	address := fmt.Sprintf("%s:%d", srv.Node.IPv4, srv.Node.Port)
 
 	logrus.Infof("starting up server on %s", address)
-	http.HandleFunc(fmt.Sprintf("%s/", proxyPath), srv.ProxyRequestHandler(proxy, fakeProxy, proxyPath))
+	http.HandleFunc(fmt.Sprintf("%s/", proxyPath), no.ProxyRequestHandler(proxy, fakeProxy, proxyPath))
 
 	log.Fatal(http.ListenAndServe(address, nil))
 	return nil

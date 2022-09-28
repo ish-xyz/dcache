@@ -1,29 +1,34 @@
 package gc
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/sirupsen/logrus"
 )
 
-type GarbageCollector struct {
-	DataDir  string
-	Interval time.Duration
-	MaxAge   time.Duration
-	Logger   *logrus.Entry
+type GC struct {
+	DataDir    string
+	Interval   time.Duration
+	MaxAge     time.Duration
+	MaxSize    int
+	MinStorage int
+	Logger     *logrus.Entry
 }
 
-func NewGC(dataDir string, interval, maxAge int) *GarbageCollector {
-	return &GarbageCollector{
+func NewGC(dataDir string, interval, maxAge int, log *logrus.Entry) *GC {
+	return &GC{
 		DataDir:  dataDir,
 		Interval: time.Duration(interval),
 		MaxAge:   time.Duration(maxAge),
+		Logger:   log,
 	}
 }
 
-func (gc *GarbageCollector) Run() {
+func (gc *GC) Run() error {
+
 	for {
-		fmt.Println("TODO: implement GC")
+		//atim can't be used here
+		//
+		time.Sleep(time.Duration(3) * time.Second)
 	}
 }

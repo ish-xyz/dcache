@@ -12,6 +12,7 @@ require (
 )
 
 require (
+	github.com/djherbis/times v1.5.0 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect

@@ -17,6 +17,7 @@ import (
 
 var (
 	verbose          bool
+	scheme           = "http"
 	insecure         bool // insecure upstream connection
 	port             int
 	maxConnections   int
@@ -75,7 +76,7 @@ func mapArgs() {
 func registerNode(client *node.Client) {
 	logrus.Info("registering node... (will retry forever)")
 	for !node.Registered {
-		client.Register()
+		client.Register(ipv4, scheme, port, maxConnections)
 		time.Sleep(time.Duration(2) * time.Second)
 	}
 	logrus.Info("registration completed.")
@@ -109,11 +110,7 @@ func exec(cmd *cobra.Command, args []string) {
 	validate := validator.New()
 	client := node.NewClient(
 		name,
-		ipv4,
-		"http",
 		schedulerAddress,
-		port,
-		maxConnections,
 		logger.WithField("component", "nodeclient"),
 	)
 	err := validate.Struct(client)
@@ -132,14 +129,31 @@ func exec(cmd *cobra.Command, args []string) {
 		logger.WithField("component", "notifier"),
 	)
 
+	// _ := gc.NewGC(
+	// 	dataDir,
+	// 	120,
+	// 	60,
+	// 	logger.WithField("component", "gc"),
+	// )
+
 	//TODO: add nt & dw validation
 	re := regexp.MustCompile(proxyRegex)
 	uconf := &server.UpstreamConfig{
 		Address:  upstream,
 		Insecure: insecure,
 	}
-	serverObj := *server.NewServer(client, dataDir, uconf, re, dw)
-	err = validate.Struct(serverObj)
+	nodeObj := server.NewNode(
+		client,
+		uconf,
+		dataDir,
+		scheme,
+		ipv4,
+		port,
+		maxConnections,
+		dw,
+		re,
+	)
+	err = validate.Struct(nodeObj)
 	if err != nil {
 		logrus.Errorf("Error while validating user inputs or configuration file")
 		logrus.Debugln(err)
@@ -148,9 +162,7 @@ func exec(cmd *cobra.Command, args []string) {
 
 	// Run programs
 	registerNode(client)
-
 	go dw.Run()
 	go nt.Watch()
-
-	serverObj.Run()
+	nodeObj.Run()
 }
