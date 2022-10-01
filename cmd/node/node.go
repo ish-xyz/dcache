@@ -24,8 +24,7 @@ var (
 
 	gcMaxAtimeAge  string
 	gcInterval     string
-	gcMaxDiskUsage int
-	gcMinDiskFree  int
+	gcMaxDiskUsage string
 
 	name             string
 	ipv4             string
@@ -54,6 +53,9 @@ func CLI() {
 	Cmd.PersistentFlags().StringVarP(&proxyRegex, "proxy-regex", "r", "*blob/sha256*", "Regex for the node proxy")
 	Cmd.PersistentFlags().StringVarP(&schedulerAddress, "scheduler-address", "s", "", "Full http url of the scheduler")
 	Cmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Run node in verbose mode")
+	Cmd.PersistentFlags().StringVarP(&gcMaxAtimeAge, "gc-max-atime-age", "t", "12h", "Garbage collector max atime age for files")
+	Cmd.PersistentFlags().StringVarP(&gcInterval, "gc-interval", "z", "120m", "Garbage collector interval")
+	Cmd.PersistentFlags().StringVarP(&gcMaxDiskUsage, "gc-max-disk-usage", "x", "1G", "Garbage collector max dataDir size (default value 1GB)")
 
 	viper.BindPFlag("node.name", Cmd.PersistentFlags().Lookup("name"))
 	viper.BindPFlag("node.ipv4", Cmd.PersistentFlags().Lookup("ipv4"))
@@ -64,11 +66,9 @@ func CLI() {
 	viper.BindPFlag("node.proxy.regex", Cmd.PersistentFlags().Lookup("proxy-regex"))
 	viper.BindPFlag("node.scheduler.address", Cmd.PersistentFlags().Lookup("scheduler-address"))
 	viper.BindPFlag("node.verbose", Cmd.PersistentFlags().Lookup("verbose"))
-
 	viper.BindPFlag("node.gc.maxAtimeAge", Cmd.PersistentFlags().Lookup("gc-max-atime-age"))
 	viper.BindPFlag("node.gc.interval", Cmd.PersistentFlags().Lookup("gc-interval"))
-	//viper.BindPFlag("node.gc.maxStorage", Cmd.PersistentFlags().Lookup("gc-max-disk-usage"))
-	//viper.BindPFlag("node.gc.minDiskFree", Cmd.PersistentFlags().Lookup("gc-min-disk-free"))
+	viper.BindPFlag("node.gc.maxDiskUsage", Cmd.PersistentFlags().Lookup("gc-max-disk-usage"))
 
 }
 
@@ -82,6 +82,9 @@ func argumentsMapping() {
 	upstream = viper.Get("node.upstream.address").(string)
 	proxyRegex = viper.Get("node.proxy.regex").(string)
 	schedulerAddress = viper.Get("node.scheduler.address").(string)
+	gcMaxAtimeAge = viper.Get("node.gc.maxAtimeAge").(string)
+	gcMaxDiskUsage = viper.Get("node.gc.maxDiskUsage").(string)
+	gcInterval = viper.Get("node.gc.interval").(string)
 }
 
 func registerNode(client *node.Client) {
@@ -96,12 +99,13 @@ func registerNode(client *node.Client) {
 func exec(cmd *cobra.Command, args []string) {
 
 	logger := logrus.New()
+	validate := validator.New()
 
 	if config != "" {
 		viper.SetConfigFile(config)
 		err := viper.ReadInConfig()
 		if err != nil {
-			logrus.Errorf("fatal error reading config file: %w", err)
+			logrus.Errorf("fatal error reading config file: %v", err)
 			return
 		}
 		argumentsMapping()
@@ -119,12 +123,11 @@ func exec(cmd *cobra.Command, args []string) {
 		// during struct validation later
 	}
 
-	validate := validator.New()
-	client := node.NewClient(
-		name,
-		schedulerAddress,
-		logger.WithField("component", "node.client"),
-	)
+	gcMaxAtimeAge, _ := time.ParseDuration(gcMaxAtimeAge)
+	gcInterval, _ := time.ParseDuration(gcInterval)
+
+	client := node.NewClient(name, schedulerAddress, logger.WithField("component", "node.client"))
+
 	err := validate.Struct(client)
 	if err != nil {
 		logrus.Errorf("Error while validating user inputs or configuration file")
@@ -135,34 +138,30 @@ func exec(cmd *cobra.Command, args []string) {
 	dw := downloader.NewDownloader(
 		logger.WithField("component", "node.downloader"),
 		dataDir,
-		time.Duration(30)*time.Second,
-		time.Duration(5)*time.Second,
-		gcMaxDiskUsage,
-		gcMinDiskFree,
+		gcMaxAtimeAge,
+		gcInterval,
+		1024,
 	)
-
 	nt := notifier.NewNotifier(
 		client,
 		dataDir,
 		logger.WithField("component", "node.notifier"),
 	)
-
 	//TODO: add nt & dw validation
-	re := regexp.MustCompile(proxyRegex)
-	uconf := &server.UpstreamConfig{
-		Address:  upstream,
-		Insecure: insecure,
-	}
+
 	nodeObj := server.NewNode(
 		client,
-		uconf,
+		&server.UpstreamConfig{
+			Address:  upstream,
+			Insecure: insecure,
+		},
 		dataDir,
 		scheme,
 		ipv4,
 		port,
 		maxConnections,
 		dw,
-		re,
+		regexp.MustCompile(proxyRegex),
 		logger.WithField("component", "node.server"),
 	)
 	err = validate.Struct(nodeObj)
@@ -172,10 +171,10 @@ func exec(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	// Run programs
+	// Execution
 	registerNode(client)
 
-	logrus.Infoln("starting daemons...")
+	logrus.Infoln("starting routines...")
 	go dw.Run()
 	go nt.Watch()
 	go dw.GC.Run()

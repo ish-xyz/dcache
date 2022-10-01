@@ -13,7 +13,6 @@ type GC struct {
 	Interval     time.Duration
 	MaxAtimeAge  time.Duration
 	MaxDiskUsage int
-	MinDiskFree  int
 	DataDir      string
 	AtimeStore   map[string]int64
 	Logger       *logrus.Entry
@@ -26,6 +25,7 @@ func (gc *GC) UpdateAtime(item string) {
 
 func (gc *GC) Run() {
 	for {
+
 		files, err := ioutil.ReadDir(gc.DataDir)
 		if err != nil {
 			gc.Logger.Errorln("error while reading dataDir:", err)

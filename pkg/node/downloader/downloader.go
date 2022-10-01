@@ -23,12 +23,11 @@ type Item struct {
 	FilePath string
 }
 
-func NewDownloader(log *logrus.Entry, dataDir string, maxAtime, interval time.Duration, maxDiskUsage, minDiskFree int) *Downloader {
+func NewDownloader(log *logrus.Entry, dataDir string, maxAtime, interval time.Duration, maxDiskUsage int) *Downloader {
 
 	gc := &GC{
 		MaxAtimeAge:  maxAtime,
 		MaxDiskUsage: maxDiskUsage,
-		MinDiskFree:  minDiskFree,
 		Interval:     interval,
 		DataDir:      dataDir,
 		Logger:       log.WithField("component", "node.downloader.gc"),
