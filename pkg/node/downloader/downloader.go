@@ -32,6 +32,7 @@ func NewDownloader(log *logrus.Entry, dataDir string, maxAtime, interval time.Du
 		DataDir:      dataDir,
 		Logger:       log.WithField("component", "node.downloader.gc"),
 		AtimeStore:   make(map[string]int64),
+		DryRun:       false,
 	}
 
 	return &Downloader{

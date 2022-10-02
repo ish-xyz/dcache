@@ -17,6 +17,7 @@ type GC struct {
 	DataDir      string
 	AtimeStore   map[string]int64
 	Logger       *logrus.Entry
+	DryRun       bool
 }
 
 func (gc *GC) UpdateAtime(item string) {
@@ -40,18 +41,17 @@ func (gc *GC) dataDirSize() float64 {
 	return float64(dirSize)
 }
 
-func (gc *GC) Run(dryRun bool) {
+func (gc *GC) Run() {
 	for {
-
-		// check disk usage
+		// TODO: check disk usage
 
 		files, err := ioutil.ReadDir(gc.DataDir)
 		if err != nil {
 			gc.Logger.Errorln("error while reading dataDir:", err)
-			continue
 		}
+
 		for _, fi := range files {
-			gc.Logger.Debugln("checking file %s", fi.Name())
+			gc.Logger.Debugf("checking file %s", fi.Name())
 			if _, ok := gc.AtimeStore[fi.Name()]; !ok {
 				gc.Logger.Warningf("can't find file %s on Atime memory store", fi.Name())
 				continue
@@ -70,9 +70,11 @@ func (gc *GC) Run(dryRun bool) {
 			}
 			gc.Logger.Debugln("file is too young, keeping it ->", fi.Name())
 		}
-		if dryRun {
-			break
+
+		if gc.DryRun {
+			return
 		}
+
 		time.Sleep(gc.Interval)
 	}
 }

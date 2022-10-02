@@ -177,6 +177,6 @@ func exec(cmd *cobra.Command, args []string) {
 	logrus.Infoln("starting routines...")
 	go dw.Run()
 	go nt.Watch()
-	go dw.GC.Run(false)
+	go dw.GC.Run()
 	nodeObj.Run()
 }
