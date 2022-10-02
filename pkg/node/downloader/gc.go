@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -23,8 +24,26 @@ func (gc *GC) UpdateAtime(item string) {
 	gc.AtimeStore[item] = ts
 }
 
-func (gc *GC) Run() {
+func (gc *GC) dataDirSize() float64 {
+	var dirSize int64 = 0
+
+	readSize := func(path string, file os.FileInfo, err error) error {
+		if !file.IsDir() {
+			dirSize += file.Size()
+		}
+
+		return nil
+	}
+
+	filepath.Walk(gc.DataDir, readSize)
+
+	return float64(dirSize)
+}
+
+func (gc *GC) Run(dryRun bool) {
 	for {
+
+		// check disk usage
 
 		files, err := ioutil.ReadDir(gc.DataDir)
 		if err != nil {
@@ -50,6 +69,9 @@ func (gc *GC) Run() {
 				continue
 			}
 			gc.Logger.Debugln("file is too young, keeping it ->", fi.Name())
+		}
+		if dryRun {
+			break
 		}
 		time.Sleep(gc.Interval)
 	}

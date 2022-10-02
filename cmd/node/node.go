@@ -140,7 +140,7 @@ func exec(cmd *cobra.Command, args []string) {
 		dataDir,
 		gcMaxAtimeAge,
 		gcInterval,
-		1024,
+		1024*1024*1024,
 	)
 	nt := notifier.NewNotifier(
 		client,
@@ -177,6 +177,6 @@ func exec(cmd *cobra.Command, args []string) {
 	logrus.Infoln("starting routines...")
 	go dw.Run()
 	go nt.Watch()
-	go dw.GC.Run()
+	go dw.GC.Run(false)
 	nodeObj.Run()
 }
