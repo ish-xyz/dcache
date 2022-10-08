@@ -15,20 +15,26 @@ func TestFileTooOld(t *testing.T) {
 	logger := logrus.New()
 	dataDir := "/tmp/dcache-gc-test-01"
 	fileName := "test.txt"
+	cache := &FilesCache{
+		AtimeStore: make(map[string]int64),
+		FilesByAge: make([]string, 1),
+		FilesSize:  make(map[string]int64),
+	}
+
 	gc := &GC{
 		MaxAtimeAge:  time.Duration(10) * time.Second,
-		MaxDiskUsage: 1024 * 1024,
+		MaxDiskUsage: 1024 * 1024 * 1024,
 		Interval:     time.Duration(10) * time.Second,
 		DataDir:      dataDir,
 		Logger:       logger.WithField("component", "node.downloader.gc"),
-		AtimeStore:   make(map[string]int64),
+		Cache:        cache,
 		DryRun:       true,
 	}
 
 	mkdirErr := os.Mkdir(dataDir, 0755)
 	_, createFileErr := os.Create(fmt.Sprintf("%s/%s", dataDir, fileName))
 
-	gc.AtimeStore[fileName] = time.Now().Unix() - 11
+	gc.Cache.AtimeStore[fileName] = time.Now().Unix() - 11
 
 	gc.Run()
 
@@ -46,20 +52,25 @@ func TestFileAgeOK(t *testing.T) {
 	logger := logrus.New()
 	dataDir := "/tmp/dcache-gc-test-02"
 	fileName := "test.txt"
+	cache := &FilesCache{
+		AtimeStore: make(map[string]int64),
+		FilesByAge: make([]string, 1),
+		FilesSize:  make(map[string]int64),
+	}
 	gc := &GC{
 		MaxAtimeAge:  time.Duration(10) * time.Second,
-		MaxDiskUsage: 1024 * 1024,
+		MaxDiskUsage: 1024 * 1024 * 1024,
 		Interval:     time.Duration(10) * time.Second,
 		DataDir:      dataDir,
 		Logger:       logger.WithField("component", "node.downloader.gc"),
-		AtimeStore:   make(map[string]int64),
+		Cache:        cache,
 		DryRun:       true,
 	}
 
 	mkdirErr := os.Mkdir(dataDir, 0755)
 	_, createFileErr := os.Create(fmt.Sprintf("%s/%s", dataDir, fileName))
 
-	gc.AtimeStore[fileName] = time.Now().Unix()
+	gc.Cache.AtimeStore[fileName] = time.Now().Unix()
 
 	gc.Run()
 
@@ -78,13 +89,18 @@ func TestAtimeTable(t *testing.T) {
 	dataDir := "/tmp/dcache-gc-test-02"
 	fileName := "test.txt"
 	filepath := fmt.Sprintf("%s/%s", dataDir, fileName)
+	cache := &FilesCache{
+		AtimeStore: make(map[string]int64),
+		FilesByAge: make([]string, 1),
+		FilesSize:  make(map[string]int64),
+	}
 	gc := &GC{
 		MaxAtimeAge:  time.Duration(10) * time.Second,
-		MaxDiskUsage: 1024 * 1024,
+		MaxDiskUsage: 1024 * 1024 * 1024,
 		Interval:     time.Duration(10) * time.Second,
 		DataDir:      dataDir,
 		Logger:       logger.WithField("component", "node.downloader.gc"),
-		AtimeStore:   make(map[string]int64),
+		Cache:        cache,
 		DryRun:       true,
 	}
 
@@ -92,7 +108,7 @@ func TestAtimeTable(t *testing.T) {
 	time.Sleep(time.Duration(1) * time.Second)
 	now := time.Now().Unix()
 
-	assert.GreaterOrEqual(t, now, gc.AtimeStore[filepath])
+	assert.GreaterOrEqual(t, now, gc.Cache.AtimeStore[filepath])
 }
 
 func TestDirSizeOK(t *testing.T) {
@@ -101,13 +117,18 @@ func TestDirSizeOK(t *testing.T) {
 	dataDir := "/tmp/dcache-gc-test-02"
 	fileName := "test.txt"
 	filepath := fmt.Sprintf("%s/%s", dataDir, fileName)
+	cache := &FilesCache{
+		AtimeStore: make(map[string]int64),
+		FilesByAge: make([]string, 1),
+		FilesSize:  make(map[string]int64),
+	}
 	gc := &GC{
 		MaxAtimeAge:  time.Duration(10) * time.Second,
-		MaxDiskUsage: 1024 * 1024,
+		MaxDiskUsage: 1024 * 1024 * 1024,
 		Interval:     time.Duration(10) * time.Second,
 		DataDir:      dataDir,
 		Logger:       logger.WithField("component", "node.downloader.gc"),
-		AtimeStore:   make(map[string]int64),
+		Cache:        cache,
 		DryRun:       true,
 	}
 
@@ -116,9 +137,6 @@ func TestDirSizeOK(t *testing.T) {
 	gc.UpdateAtime(fileName)
 
 	gc.Run()
-
-	assert.Equal(t, 1, 2)
-
 	os.RemoveAll(dataDir)
 }
 

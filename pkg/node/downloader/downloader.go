@@ -34,14 +34,19 @@ type Item struct {
 
 func NewDownloader(log *logrus.Entry, dataDir string, maxAtime, interval time.Duration, maxDiskUsage int) *Downloader {
 
+	cache := &FilesCache{
+		AtimeStore: make(map[string]int64),
+		FilesByAge: make([]string, 1),
+		FilesSize:  make(map[string]int64),
+	}
+
 	gc := &GC{
 		MaxAtimeAge:  maxAtime,
 		MaxDiskUsage: maxDiskUsage,
 		Interval:     interval,
 		DataDir:      dataDir,
 		Logger:       log.WithField("component", "node.downloader.gc"),
-		AtimeStore:   make(map[string]int64),
-		FilesByAge:   make([]string, 1),
+		Cache:        cache,
 		DryRun:       false,
 	}
 
@@ -103,7 +108,7 @@ func (d *Downloader) Run() {
 			d.Logger.Infof("removing file %s", lastItem.FilePath)
 			err = os.Remove(lastItem.FilePath)
 			if err != nil {
-				d.Logger.Errorln("failed to delete corrupt file %s with error %v", lastItem.FilePath, err)
+				d.Logger.Errorf("failed to delete corrupt file %s with error %v", lastItem.FilePath, err)
 			}
 			continue
 		}

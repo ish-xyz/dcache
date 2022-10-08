@@ -10,26 +10,29 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var fileSizes map[string]int64
+type FilesCache struct {
+	AtimeStore map[string]int64
+	FilesByAge []string
+	FilesSize  map[string]int64
+}
 
 type GC struct {
 	Interval     time.Duration
 	MaxAtimeAge  time.Duration
 	MaxDiskUsage int
 	DataDir      string
-	AtimeStore   map[string]int64
-	FilesByAge   []string
+	Cache        *FilesCache
 	Logger       *logrus.Entry
 	DryRun       bool
 }
 
 func (gc *GC) UpdateAtime(item string) {
-	gc.FilesByAge = append(gc.FilesByAge, item)
-	if gc.FilesByAge[0] == item {
-		gc.FilesByAge = gc.FilesByAge[1:]
+	gc.Cache.FilesByAge = append(gc.Cache.FilesByAge, item)
+	if gc.Cache.FilesByAge[0] == item {
+		gc.Cache.FilesByAge = gc.Cache.FilesByAge[1:]
 	}
 	ts := time.Now().Unix()
-	gc.AtimeStore[item] = ts
+	gc.Cache.AtimeStore[item] = ts
 }
 
 func (gc *GC) dataDirSize() float64 {
@@ -38,14 +41,16 @@ func (gc *GC) dataDirSize() float64 {
 	readSize := func(path string, file os.FileInfo, err error) error {
 		// cache file sizes into a map so that
 		// we avoid to read all the time from disk
-		if size, ok := fileSizes[file.Name()]; ok && !file.IsDir() {
+		if size, ok := gc.Cache.FilesSize[file.Name()]; ok && !file.IsDir() {
 			dirSize += size
-		} else {
-			if !file.IsDir() {
-				fileSizes[file.Name()] = file.Size()
-				dirSize += file.Size()
-			}
+			return nil
 		}
+
+		if !file.IsDir() {
+			gc.Cache.FilesSize[file.Name()] = file.Size()
+			dirSize += file.Size()
+		}
+
 		return nil
 	}
 
@@ -63,20 +68,21 @@ func (gc *GC) Run() {
 
 		for _, fi := range files {
 			gc.Logger.Debugf("checking file %s", fi.Name())
-			if _, ok := gc.AtimeStore[fi.Name()]; !ok {
+			if _, ok := gc.Cache.AtimeStore[fi.Name()]; !ok {
 				gc.Logger.Warningf("can't find file %s on Atime memory store", fi.Name())
 				continue
 			}
 
-			fileAtimeAge := time.Now().Unix() - gc.AtimeStore[fi.Name()]
+			fileAtimeAge := time.Now().Unix() - gc.Cache.AtimeStore[fi.Name()]
 			if fileAtimeAge > int64(gc.MaxAtimeAge.Seconds()) {
 				gc.Logger.Debugln("deleting file:", fi.Name())
 				filepath := fmt.Sprintf("%s/%s", gc.DataDir, fi.Name())
 				err := os.Remove(filepath)
-				if err == nil {
-					delete(gc.AtimeStore, fi.Name())
+				if err != nil {
+					gc.Logger.Errorf("failed to remove file %s, error: %v", filepath, err)
+					continue
 				}
-				gc.Logger.Errorf("failed to remove file %s, error: %v", filepath, err)
+				delete(gc.Cache.AtimeStore, fi.Name())
 				continue
 			}
 			gc.Logger.Debugln("file is too young, keeping it ->", fi.Name())
@@ -105,14 +111,14 @@ func (gc *GC) Run() {
 
 func (gc *GC) cleanDataDir() error {
 
-	for _, file := range gc.FilesByAge {
+	for _, file := range gc.Cache.FilesByAge {
 		err := os.Remove(fmt.Sprintf("%s/%s", gc.DataDir, file))
 		if err != nil {
-			gc.Logger.Errorf("failed to remvoe file %s", file)
+			gc.Logger.Errorf("failed to remove file %s", file)
 			continue
 		}
 
-		gc.FilesByAge = gc.FilesByAge[1:]
+		gc.Cache.FilesByAge = gc.Cache.FilesByAge[1:]
 		if gc.dataDirSize() < float64(gc.MaxDiskUsage) {
 			break
 		}
