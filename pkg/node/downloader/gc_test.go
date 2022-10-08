@@ -72,6 +72,66 @@ func TestFileAgeOK(t *testing.T) {
 	os.RemoveAll(dataDir)
 }
 
-func TestDirSizeTooBig() {}
+func TestAtimeTable(t *testing.T) {
 
-func TestDirSizeOK() {}
+	logger := logrus.New()
+	dataDir := "/tmp/dcache-gc-test-02"
+	fileName := "test.txt"
+	filepath := fmt.Sprintf("%s/%s", dataDir, fileName)
+	gc := &GC{
+		MaxAtimeAge:  time.Duration(10) * time.Second,
+		MaxDiskUsage: 1024 * 1024,
+		Interval:     time.Duration(10) * time.Second,
+		DataDir:      dataDir,
+		Logger:       logger.WithField("component", "node.downloader.gc"),
+		AtimeStore:   make(map[string]int64),
+		DryRun:       true,
+	}
+
+	gc.UpdateAtime(filepath)
+	time.Sleep(time.Duration(1) * time.Second)
+	now := time.Now().Unix()
+
+	assert.GreaterOrEqual(t, now, gc.AtimeStore[filepath])
+}
+
+func TestDirSizeOK(t *testing.T) {
+
+	logger := logrus.New()
+	dataDir := "/tmp/dcache-gc-test-02"
+	fileName := "test.txt"
+	filepath := fmt.Sprintf("%s/%s", dataDir, fileName)
+	gc := &GC{
+		MaxAtimeAge:  time.Duration(10) * time.Second,
+		MaxDiskUsage: 1024 * 1024,
+		Interval:     time.Duration(10) * time.Second,
+		DataDir:      dataDir,
+		Logger:       logger.WithField("component", "node.downloader.gc"),
+		AtimeStore:   make(map[string]int64),
+		DryRun:       true,
+	}
+
+	os.Mkdir(dataDir, 0755)
+	createFileWithSize(filepath, 10*1024*1024)
+	gc.UpdateAtime(fileName)
+
+	gc.Run()
+
+	assert.Equal(t, 1, 2)
+
+	os.RemoveAll(dataDir)
+}
+
+func createFileWithSize(filepath string, size int) error {
+	data := make([]byte, size)
+	f, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = f.Write(data)
+	if err != nil {
+		return err
+	}
+	return nil
+}

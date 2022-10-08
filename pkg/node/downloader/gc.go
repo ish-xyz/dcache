@@ -10,6 +10,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var fileSizes map[string]int64
+
 type GC struct {
 	Interval     time.Duration
 	MaxAtimeAge  time.Duration
@@ -29,10 +31,16 @@ func (gc *GC) dataDirSize() float64 {
 	var dirSize int64 = 0
 
 	readSize := func(path string, file os.FileInfo, err error) error {
-		if !file.IsDir() {
-			dirSize += file.Size()
+		// cache file sizes into a map so that
+		// we avoid to read all the time from disk
+		if size, ok := fileSizes[file.Name()]; ok && !file.IsDir() {
+			dirSize += size
+		} else {
+			if !file.IsDir() {
+				fileSizes[file.Name()] = file.Size()
+				dirSize += file.Size()
+			}
 		}
-
 		return nil
 	}
 
@@ -43,8 +51,6 @@ func (gc *GC) dataDirSize() float64 {
 
 func (gc *GC) Run() {
 	for {
-		// TODO: check disk usage
-
 		files, err := ioutil.ReadDir(gc.DataDir)
 		if err != nil {
 			gc.Logger.Errorln("error while reading dataDir:", err)
@@ -70,6 +76,19 @@ func (gc *GC) Run() {
 			}
 			gc.Logger.Debugln("file is too young, keeping it ->", fi.Name())
 		}
+
+		killswitch.mu.Lock()
+
+		if gc.dataDirSize() > float64(gc.MaxDiskUsage) {
+			gc.Logger.Debugln("enabling downloader killswitch as we reached the maximum disk space")
+			killswitch.Trigger = true
+			//cleanDataDir()
+		} else {
+			gc.Logger.Debugln("disabling downloader killswitch")
+			killswitch.Trigger = false
+		}
+
+		killswitch.mu.Unlock()
 
 		if gc.DryRun {
 			return

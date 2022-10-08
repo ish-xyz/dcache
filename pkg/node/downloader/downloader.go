@@ -5,17 +5,26 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
 )
 
+var (
+	killswitch KillSwitch
+)
+
+type KillSwitch struct {
+	Trigger bool
+	mu      sync.Mutex
+}
+
 type Downloader struct {
-	Queue      chan *Item
-	KillSwitch bool
-	Client     *http.Client
-	Logger     *logrus.Entry
-	GC         *GC
+	Queue  chan *Item
+	Client *http.Client
+	Logger *logrus.Entry
+	GC     *GC
 }
 
 type Item struct {
@@ -36,11 +45,10 @@ func NewDownloader(log *logrus.Entry, dataDir string, maxAtime, interval time.Du
 	}
 
 	return &Downloader{
-		Queue:      make(chan *Item),
-		KillSwitch: false,
-		Logger:     log,
-		Client:     &http.Client{},
-		GC:         gc,
+		Queue:  make(chan *Item),
+		Logger: log,
+		Client: &http.Client{},
+		GC:     gc,
 	}
 }
 
@@ -80,10 +88,11 @@ func (d *Downloader) download(item *Item) error {
 	return err
 }
 
-func (d *Downloader) Run() error {
+func (d *Downloader) Run() {
 	for {
-		if d.KillSwitch {
-			break
+		if killswitch.Trigger {
+			d.Logger.Warningln("Not downloading anymore file, as we reached max disk space allowed for dataDir")
+			continue
 		}
 
 		lastItem := d.Pop()
@@ -93,11 +102,10 @@ func (d *Downloader) Run() error {
 			d.Logger.Infof("removing file %s", lastItem.FilePath)
 			err = os.Remove(lastItem.FilePath)
 			if err != nil {
-				return fmt.Errorf("failed to delete corrupt file %s with error %v", lastItem.FilePath, err)
+				d.Logger.Errorln("failed to delete corrupt file %s with error %v", lastItem.FilePath, err)
 			}
 			continue
 		}
 		d.Logger.Infof("cached %s in %s", lastItem.Req.URL.String(), lastItem.FilePath)
 	}
-	return nil
 }
