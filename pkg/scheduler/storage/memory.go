@@ -44,17 +44,28 @@ func (store *MemoryStorage) WriteIndex(hash string, nodeName string, ops string)
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
-	if ops == "delete" {
+	switch ops {
+	case "delete":
 		delete(store.Index[hash], nodeName)
 		return nil
-	} else if ops == "add" {
-		store.Index[hash][nodeName] += 1
+	case "add":
+		if _, ok := store.Index[hash]; ok {
+			store.Index[hash][nodeName] += 1
+		} else {
+			store.Index[hash] = map[string]int{
+				nodeName: 1,
+			}
+		}
 		return nil
-	} else if ops == "remove" {
-		store.Index[hash][nodeName] -= 1
+	case "remove":
+		if _, ok := store.Index[hash]; ok {
+			store.Index[hash][nodeName] -= 1
+		}
 		return nil
+	default:
+		return fmt.Errorf("store: invalid operation")
 	}
-	return fmt.Errorf("store: invalid operation")
+
 }
 
 // Read node statuses for item

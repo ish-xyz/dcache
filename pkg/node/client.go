@@ -305,13 +305,14 @@ func (no *Client) Schedule(item string) (*NodeInfo, error) {
 		return nil, fmt.Errorf("scheduler response is not 200")
 	}
 
-	// TODO: Need to ensure that this values are always here
+	//TODO: find a cleaner way
 	nodeInfo := &NodeInfo{
-		Name:        resp.Data["node"].(map[string]interface{})["name"].(string),
-		IPv4:        resp.Data["node"].(map[string]interface{})["ipv4"].(string),
-		Port:        resp.Data["node"].(map[string]interface{})["port"].(int),
-		Connections: resp.Data["node"].(map[string]interface{})["connections"].(int),
-		Scheme:      resp.Data["node"].(map[string]interface{})["scheme"].(string),
+		Name:           resp.Data["node"].(map[string]interface{})["name"].(string),
+		IPv4:           resp.Data["node"].(map[string]interface{})["ipv4"].(string),
+		Port:           int(resp.Data["node"].(map[string]interface{})["port"].(float64)),
+		Connections:    int(resp.Data["node"].(map[string]interface{})["connections"].(float64)),
+		MaxConnections: int(resp.Data["node"].(map[string]interface{})["maxConnections"].(float64)),
+		Scheme:         resp.Data["node"].(map[string]interface{})["scheme"].(string),
 	}
 
 	no.Logger.Debugln("succcessfully found node %s", nodeInfo.Name)
