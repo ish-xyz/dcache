@@ -88,7 +88,7 @@ func (gc *GC) Run() {
 			gc.Logger.Debugln("enabling downloader killswitch as we reached the maximum disk space")
 			killswitch.Trigger = true
 			gc.cleanDataDir()
-		} else {
+		} else if killswitch.Trigger {
 			gc.Logger.Debugln("disabling downloader killswitch")
 			killswitch.Trigger = false
 		}

@@ -117,7 +117,7 @@ func (no *Node) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, pro
 			// will  most likely be processed after the request has been served and the contex wil get canceled
 			// Remove this comment when a test has been implemented
 
-			peerinfo, err := no.Client.FindSource(item)
+			peerinfo, err := no.Client.Schedule(item)
 			if err != nil {
 				no.Logger.Errorln("error looking for peer:", err)
 

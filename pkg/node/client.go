@@ -99,7 +99,7 @@ func (no *Client) Register(ipv4, scheme string, port, maxconn int) error {
 	}
 
 	if resp.Status != "success" {
-		no.Logger.Debugln("error received from scheduler while registering: %s", resp.Message)
+		no.Logger.Debugf("error received from scheduler while registering: %s", resp.Message)
 		return fmt.Errorf(resp.Message)
 	}
 
@@ -172,7 +172,7 @@ func (no *Client) RemoveConnection() error {
 	}
 
 	if resp.Status != "success" {
-		no.Logger.Debugln("error received from scheduler: %s", resp.Message)
+		no.Logger.Debugf("error received from scheduler: %s", resp.Message)
 		return fmt.Errorf(resp.Message)
 	}
 
@@ -208,7 +208,7 @@ func (no *Client) Info() (*NodeInfo, error) {
 	}
 
 	if resp.Status != "success" {
-		no.Logger.Debugln("error received from scheduler: %s", resp.Message)
+		no.Logger.Debugf("error received from scheduler: %s", resp.Message)
 		return nil, err
 	}
 
@@ -266,7 +266,7 @@ func (no *Client) NotifyItem(item string, ops int) error {
 	}
 
 	if resp.Status != "success" {
-		no.Logger.Debugln("error received from scheduler: %s", resp.Message)
+		no.Logger.Debugf("error received from scheduler: %s", resp.Message)
 		return err
 	}
 
@@ -274,7 +274,7 @@ func (no *Client) NotifyItem(item string, ops int) error {
 }
 
 // Ask the scheduler to find a node to download the item
-func (no *Client) FindSource(item string) (*NodeInfo, error) {
+func (no *Client) Schedule(item string) (*NodeInfo, error) {
 
 	var resp Response
 	no.Logger.Debugln("scheduling dowload for item %s", item)
@@ -298,9 +298,9 @@ func (no *Client) FindSource(item string) (*NodeInfo, error) {
 		return nil, err
 	}
 
-	if resp.Status != "success" || rawResp.StatusCode != 200 {
-		no.Logger.Debugln("error received from scheduler: %s", resp.Message)
-		return nil, err
+	if rawResp.StatusCode != 200 {
+		no.Logger.Debugln("scheduler response is not 200: %s", resp.Message)
+		return nil, fmt.Errorf("scheduler response is not 200")
 	}
 
 	// TODO: Need to ensure that this values are always here
