@@ -41,6 +41,7 @@ func NewDownloader(log *logrus.Entry, dataDir string, maxAtime, interval time.Du
 		DataDir:      dataDir,
 		Logger:       log.WithField("component", "node.downloader.gc"),
 		AtimeStore:   make(map[string]int64),
+		FilesByAge:   make([]string, 1),
 		DryRun:       false,
 	}
 

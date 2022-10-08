@@ -18,11 +18,16 @@ type GC struct {
 	MaxDiskUsage int
 	DataDir      string
 	AtimeStore   map[string]int64
+	FilesByAge   []string
 	Logger       *logrus.Entry
 	DryRun       bool
 }
 
 func (gc *GC) UpdateAtime(item string) {
+	gc.FilesByAge = append(gc.FilesByAge, item)
+	if gc.FilesByAge[0] == item {
+		gc.FilesByAge = gc.FilesByAge[1:]
+	}
 	ts := time.Now().Unix()
 	gc.AtimeStore[item] = ts
 }
@@ -82,7 +87,7 @@ func (gc *GC) Run() {
 		if gc.dataDirSize() > float64(gc.MaxDiskUsage) {
 			gc.Logger.Debugln("enabling downloader killswitch as we reached the maximum disk space")
 			killswitch.Trigger = true
-			//cleanDataDir()
+			gc.cleanDataDir()
 		} else {
 			gc.Logger.Debugln("disabling downloader killswitch")
 			killswitch.Trigger = false
@@ -96,4 +101,18 @@ func (gc *GC) Run() {
 
 		time.Sleep(gc.Interval)
 	}
+}
+
+func (gc *GC) cleanDataDir() error {
+
+	for _, file := range gc.FilesByAge {
+		err := os.Remove(fmt.Sprintf("%s/%s", gc.DataDir, file))
+		if err != nil {
+			gc.Logger.Errorf("failed to remvoe file %s", file)
+		}
+		if gc.dataDirSize() < float64(gc.MaxDiskUsage) {
+			break
+		}
+	}
+	return nil
 }
