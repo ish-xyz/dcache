@@ -69,7 +69,6 @@ func (gc *GC) Run() {
 		for _, fi := range files {
 			gc.Logger.Debugf("checking file %s", fi.Name())
 			if _, ok := gc.Cache.AtimeStore[fi.Name()]; !ok {
-				gc.Logger.Warningf("can't find file %s on Atime memory store", fi.Name())
 				continue
 			}
 
@@ -85,7 +84,6 @@ func (gc *GC) Run() {
 				delete(gc.Cache.AtimeStore, fi.Name())
 				continue
 			}
-			gc.Logger.Debugln("file is too young, keeping it ->", fi.Name())
 		}
 
 		killswitch.mu.Lock()

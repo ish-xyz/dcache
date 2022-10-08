@@ -68,7 +68,7 @@ func (no *Node) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, pro
 
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		// TODO: what happens if we allow multiple HTTP methods
+		// TODO: what happens if we allow multiple HTTP methods?
 		if no.Regex.MatchString(r.RequestURI) && r.Method == "GET" {
 
 			no.Logger.Debugln("regex matched for ", r.RequestURI)
@@ -127,8 +127,11 @@ func (no *Node) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, pro
 			}
 
 			rewriteToPeer(r, peerinfo)
-			peerUrl := fmt.Sprintf("%s://%s:%d/%s", peerinfo.Scheme, peerinfo.IPv4, peerinfo.Port, r.RequestURI)
-			downloaderReq, _ := copyRequest(context.TODO(), r, peerUrl, peerinfo.IPv4, "GET")
+			peerUrl := fmt.Sprintf("%s://%s:%d/%s", peerinfo.Scheme, peerinfo.IPv4, peerinfo.Port, r.URL.Path)
+			peerHost := fmt.Sprintf("%s:%d", peerinfo.IPv4, peerinfo.Port)
+
+			no.Logger.Debugln("heating cache from peer:", peerUrl)
+			downloaderReq, _ := copyRequest(context.TODO(), r, peerUrl, peerHost, "GET")
 			no.Downloader.Push(downloaderReq, filepath)
 
 			goto fakeProxy
@@ -152,6 +155,7 @@ func (no *Node) ServeSingleFile(w http.ResponseWriter, r *http.Request, itemPath
 		no.Logger.Errorln("failed to add connection to scheduler")
 	}
 
+	no.Logger.Infoln("serving file", r.RequestURI)
 	no.Downloader.GC.UpdateAtime(filepath.Base(itemPath))
 
 	http.ServeFile(w, r, itemPath)

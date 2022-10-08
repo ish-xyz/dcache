@@ -315,7 +315,7 @@ func (no *Client) Schedule(item string) (*NodeInfo, error) {
 		Scheme:         resp.Data["node"].(map[string]interface{})["scheme"].(string),
 	}
 
-	no.Logger.Debugln("succcessfully found node %s", nodeInfo.Name)
+	no.Logger.Debugln("succcessfully found node:", nodeInfo.Name)
 
 	return nodeInfo, nil
 }

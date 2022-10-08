@@ -86,6 +86,9 @@ func (d *Downloader) download(item *Item) error {
 	defer file.Close()
 
 	size, err := io.Copy(file, resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to memory copy into file")
+	}
 
 	if resp.Header.Get("content-length") != fmt.Sprintf("%d", size) {
 		return fmt.Errorf("size mismatch, wanted %s actual %s", resp.Header.Get("content-length"), fmt.Sprintf("%d", size))
