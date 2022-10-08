@@ -303,6 +303,7 @@ func (no *Client) FindSource(item string) (*NodeInfo, error) {
 		return nil, err
 	}
 
+	// TODO: Need to ensure that this values are always here
 	nodeInfo := &NodeInfo{
 		Name:        resp.Data["node"].(map[string]interface{})["name"].(string),
 		IPv4:        resp.Data["node"].(map[string]interface{})["ipv4"].(string),

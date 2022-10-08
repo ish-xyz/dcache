@@ -109,7 +109,10 @@ func (gc *GC) cleanDataDir() error {
 		err := os.Remove(fmt.Sprintf("%s/%s", gc.DataDir, file))
 		if err != nil {
 			gc.Logger.Errorf("failed to remvoe file %s", file)
+			continue
 		}
+
+		gc.FilesByAge = gc.FilesByAge[1:]
 		if gc.dataDirSize() < float64(gc.MaxDiskUsage) {
 			break
 		}

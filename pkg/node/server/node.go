@@ -65,6 +65,7 @@ func NewNode(
 
 // ProxyRequestHandler handles the http request using proxy
 func (no *Node) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, proxyPath string) func(http.ResponseWriter, *http.Request) {
+
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		// TODO: what happens if we allow multiple HTTP methods
@@ -106,29 +107,41 @@ func (no *Node) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, pro
 					no.ServeSingleFile(w, r, filepath)
 					return
 				}
-				no.Logger.Warnln("max connections for peer already reached, redirecting to upstream")
-				goto upstream // TODO: remove when scenario 2 it's implemented
+				no.Logger.Warnln("max connections for peer reached, redirecting to upstream")
+				goto upstream
 			}
 
-			no.Logger.Debugf("file %s not found in local cache, redirecting to upstream", item)
-			no.Logger.Debugf("heating cache for next requests")
+			// scenario 2: item is not present in the local cache but can be served by a peer
 
-			// Note for myself: can't use r.Context() because the download
-			// 	will get most likely processed after this request has finished and the contex canceled
-			upstreamReq, _ := copyRequest(context.TODO(), r, upstreamUrl, upstreamHost, "GET")
-			no.Downloader.Push(upstreamReq, filepath)
+			// NOTE: we can't pass r.Context() to copyRequest because the download
+			// will  most likely be processed after the request has been served and the contex wil get canceled
+			// Remove this comment when a test has been implemented
 
-			goto upstream
+			peerinfo, err := no.Client.FindSource(item)
+			if err != nil {
+				no.Logger.Errorln("error looking for peer:", err)
+
+				downloaderReq, _ := copyRequest(context.TODO(), r, upstreamUrl, upstreamHost, "GET")
+				no.Downloader.Push(downloaderReq, filepath)
+				goto upstream
+			}
+
+			rewriteToPeer(r, peerinfo)
+			peerUrl := fmt.Sprintf("%s://%s:%d/%s", peerinfo.Scheme, peerinfo.IPv4, peerinfo.Port, r.RequestURI)
+			downloaderReq, _ := copyRequest(context.TODO(), r, peerUrl, peerinfo.IPv4, "GET")
+			no.Downloader.Push(downloaderReq, filepath)
+
+			goto fakeProxy
 		}
 
 	upstream:
 		no.Logger.Infof("request for %s is going to upstream", r.URL.String())
 		proxy.ServeHTTP(w, r)
-		//return
+		return
 
-		// runFakeProxy:
-		// 	no.Logger.Infof("request for %s is being cached", r.URL.String())
-		// 	fakeProxy.ServeHTTP(w, r)
+	fakeProxy:
+		no.Logger.Infof("request for %s is being cached", r.URL.String())
+		fakeProxy.ServeHTTP(w, r)
 	}
 }
 

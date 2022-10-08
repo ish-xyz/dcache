@@ -44,7 +44,7 @@ func newCustomProxy(target *url.URL, prefix string) *httputil.ReverseProxy {
 }
 
 // Helper function to set the peer as server
-func rewriteToPeer(r *http.Request, target *node.NodeInfo) error {
+func rewriteToPeer(r *http.Request, target *node.NodeInfo) {
 
 	r.Host = fmt.Sprintf("%s:%d", target.IPv4, target.Port)
 	r.RequestURI = ""
@@ -55,8 +55,6 @@ func rewriteToPeer(r *http.Request, target *node.NodeInfo) error {
 		// explicitly disable User-Agent so it's not set to default value
 		r.Header.Set("User-Agent", "")
 	}
-
-	return nil
 }
 
 func joinURLPath(a, b *url.URL) (path, rawpath string) {
