@@ -131,6 +131,9 @@ func (sch *Scheduler) schedule(item string) (*node.NodeInfo, error) {
 		if node.Connections < node.MaxConnections && node.Connections < candidate.Connections {
 			candidate = node
 		}
+
+		logrus.Debugln("candidate node is:", candidate)
+
 		if candidate.Connections == 0 {
 			return candidate, nil
 		}

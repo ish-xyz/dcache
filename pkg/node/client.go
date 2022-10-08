@@ -53,6 +53,8 @@ func NewClient(
 
 func (no *Client) Request(method string, resource string, headers map[string]string, body []byte) (*http.Response, error) {
 
+	//TODO: bake in apiversion and scheduler address here
+
 	req, _ := http.NewRequest(method, resource, bytes.NewBuffer(body))
 
 	for k, v := range headers {
@@ -238,10 +240,10 @@ func (no *Client) NotifyItem(item string, ops int) error {
 	// 4 -> remove
 	no.Logger.Debugf("notifying to scheduler: ops -> %d, item -> %s", ops, item)
 	if ops == 1 {
-		resource = fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "addNodeConnection", no.Name)
+		resource = fmt.Sprintf("%s/%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "addNodeForItem", item, no.Name)
 		method = "PUT"
 	} else if ops == 4 {
-		resource = fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "removeNodeConnection", no.Name)
+		resource = fmt.Sprintf("%s/%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "removeNodeForItem", item, no.Name)
 		method = "DELETE"
 	} else {
 		return fmt.Errorf("NotifyItem: unknown operation")
