@@ -37,8 +37,8 @@ func Validate(objects ...interface{}) error {
 
 func ParseDataSize(dataSize string) (int, error) {
 
-	symbol := strings.ToUpper(dataSize[(len(dataSize) - 2):])
-	number := dataSize[:(len(dataSize) - 2)]
+	symbol := strings.ToUpper(dataSize[(len(dataSize) - 1):])
+	number := dataSize[:(len(dataSize) - 1)]
 
 	value, err := strconv.Atoi(number)
 	if err != nil {
@@ -46,20 +46,25 @@ func ParseDataSize(dataSize string) (int, error) {
 	}
 
 	switch symbol {
-	case "MB":
+	case "M":
 		return value * MB, nil
-	case "GB":
+	case "G":
 		return value * GB, nil
-	case "TB":
+	case "T":
 		return value * TB, nil
-	case "PB":
-		//TODO: find a solution for bigger numbers here
+	case "P":
+		//TODO: find a solution for bin int
 		if value > 9000 {
 			return 0, fmt.Errorf("number too big %dPB to bytes it might cause overflow", value)
 		}
 		return value * PB, nil
-		// case "EB":
-		// 	return value * EB, nil
+	case "E":
+		//TODO: find a solution for bin int
+		if value > 9 {
+			return 0, fmt.Errorf("number too big %dEB to bytes it might cause overflow", value)
+		}
+		return value * EB, nil
+
 		// TODO overflow
 		// case "ZB":
 		// 	return value * ZB, nil
@@ -69,5 +74,5 @@ func ParseDataSize(dataSize string) (int, error) {
 		// 	return value * BB, nil
 	}
 
-	return 0, nil
+	return 0, fmt.Errorf("invalid symbol %s", symbol)
 }

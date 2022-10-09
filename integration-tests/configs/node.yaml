@@ -13,4 +13,4 @@ node:
     maxAtimeAge: 24h
     interval: 2s
     maxDiskUsage: 100G
-    minDiskFree: 20G
+ 
