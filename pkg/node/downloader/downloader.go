@@ -51,7 +51,7 @@ func NewDownloader(log *logrus.Entry, dataDir string, maxAtime, interval time.Du
 	}
 
 	return &Downloader{
-		Queue:  make(chan *Item),
+		Queue:  make(chan *Item, 100),
 		Logger: log,
 		Client: &http.Client{},
 		GC:     gc,
@@ -59,12 +59,11 @@ func NewDownloader(log *logrus.Entry, dataDir string, maxAtime, interval time.Du
 }
 
 func (d *Downloader) Push(req *http.Request, filepath string) {
-
-	item := &Item{
+	it := &Item{
 		Req:      req,
 		FilePath: filepath,
 	}
-	d.Queue <- item
+	d.Queue <- it
 }
 
 func (d *Downloader) Pop() *Item {

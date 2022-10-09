@@ -38,7 +38,7 @@ func NewServer(addr string, sch *Scheduler) *Server {
 func (s *Server) Run() {
 
 	r := mux.NewRouter()
-
+	r.NotFoundHandler = http.HandlerFunc(notFound)
 	r.HandleFunc("/v1/registerNode", s.registerNode).Methods("POST")
 	r.HandleFunc("/v1/getNode/{nodeName}", s.getNode).Methods("GET")
 	r.HandleFunc("/v1/addNodeConnection/{nodeName}", s.addNodeConnection).Methods("PUT")
@@ -79,6 +79,14 @@ func jsonApiResponse(w http.ResponseWriter, r *http.Request, code int, data inte
 	logrus.Debugln("json encoding data:", data)
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(data)
+}
+
+func notFound(w http.ResponseWriter, r *http.Request) {
+	resp := &Response{
+		Status:  "error",
+		Message: "resource not found",
+	}
+	jsonApiResponse(w, r, 404, resp)
 }
 
 func (s *Server) registerNode(w http.ResponseWriter, r *http.Request) {
