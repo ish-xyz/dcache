@@ -17,12 +17,12 @@ type FilesCache struct {
 }
 
 type GC struct {
-	Interval     time.Duration
-	MaxAtimeAge  time.Duration
-	MaxDiskUsage int
-	DataDir      string
-	Cache        *FilesCache
-	Logger       *logrus.Entry
+	Interval     time.Duration `validate:"required"`
+	MaxAtimeAge  time.Duration `validate:"required"`
+	MaxDiskUsage int           `validate:"required"`
+	DataDir      string        `validate:"required"`
+	Cache        *FilesCache   `validate:"required"`
+	Logger       *logrus.Entry `validate:"required"`
 	DryRun       bool
 }
 
@@ -69,6 +69,7 @@ func (gc *GC) Run() {
 		for _, fi := range files {
 			gc.Logger.Debugf("checking file %s", fi.Name())
 			if _, ok := gc.Cache.AtimeStore[fi.Name()]; !ok {
+				gc.Logger.Debugln("no entry in atimestore for item", fi.Name())
 				continue
 			}
 

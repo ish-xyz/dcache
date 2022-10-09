@@ -21,10 +21,10 @@ type KillSwitch struct {
 }
 
 type Downloader struct {
-	Queue  chan *Item
-	Client *http.Client
-	Logger *logrus.Entry
-	GC     *GC
+	Queue  chan *Item    `validate:"required"`
+	Client *http.Client  `validate:"required"`
+	Logger *logrus.Entry `validate:"required"`
+	GC     *GC           `validate:"required"`
 }
 
 type Item struct {
@@ -100,7 +100,7 @@ func (d *Downloader) download(item *Item) error {
 func (d *Downloader) Run() {
 	for {
 		if killswitch.Trigger {
-			d.Logger.Warningln("Not downloading anymore file, as we reached max disk space allowed for dataDir")
+			d.Logger.Warningln("Max disk space reached, unable to download new files")
 			continue
 		}
 

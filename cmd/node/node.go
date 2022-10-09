@@ -1,11 +1,11 @@
-package cmd
+package node
 
 import (
 	"os"
 	"regexp"
 	"time"
 
-	"github.com/go-playground/validator"
+	"github.com/ish-xyz/dcache/cmd/utils"
 	"github.com/ish-xyz/dcache/pkg/node"
 	"github.com/ish-xyz/dcache/pkg/node/downloader"
 	"github.com/ish-xyz/dcache/pkg/node/notifier"
@@ -44,7 +44,7 @@ var (
 func CLI() {
 	Cmd.PersistentFlags().StringVarP(&config, "config", "c", "", "Config file path")
 	Cmd.PersistentFlags().StringVarP(&name, "name", "n", "", "Name of the node, defaults to hostname")
-	Cmd.PersistentFlags().StringVarP(&ipv4, "ipv4", "i", "", "IPV4 address of the node, that gets advertised to the scheduler")
+	Cmd.PersistentFlags().StringVarP(&ipv4, "ip", "i", "", "IPV4 address of the node, that gets advertised to the scheduler")
 	Cmd.PersistentFlags().IntVarP(&port, "port", "p", 8100, "Port of the node, that gets advertised to the scheduler")
 	Cmd.PersistentFlags().IntVarP(&maxConnections, "max-conns", "m", 10, "Max connections to node")
 	Cmd.PersistentFlags().StringVarP(&dataDir, "data-dir", "d", "/var/dcache/data", "Path to the data dir")
@@ -58,7 +58,7 @@ func CLI() {
 	Cmd.PersistentFlags().StringVarP(&gcMaxDiskUsage, "gc-max-disk-usage", "x", "1G", "Garbage collector max dataDir size (default value 1GB)")
 
 	viper.BindPFlag("node.name", Cmd.PersistentFlags().Lookup("name"))
-	viper.BindPFlag("node.ipv4", Cmd.PersistentFlags().Lookup("ipv4"))
+	viper.BindPFlag("node.ip", Cmd.PersistentFlags().Lookup("ip"))
 	viper.BindPFlag("node.port", Cmd.PersistentFlags().Lookup("port"))
 	viper.BindPFlag("node.dataDir", Cmd.PersistentFlags().Lookup("data-dir"))
 	viper.BindPFlag("node.upstream.address", Cmd.PersistentFlags().Lookup("upstream"))
@@ -73,8 +73,9 @@ func CLI() {
 }
 
 func argumentsMapping() {
+
 	name = viper.Get("node.name").(string)
-	ipv4 = viper.Get("node.ipv4").(string)
+	ipv4 = viper.Get("node.ip").(string)
 	port = viper.Get("node.port").(int)
 	verbose = viper.Get("node.verbose").(bool)
 	dataDir = viper.Get("node.dataDir").(string)
@@ -85,10 +86,11 @@ func argumentsMapping() {
 	gcMaxAtimeAge = viper.Get("node.gc.maxAtimeAge").(string)
 	gcMaxDiskUsage = viper.Get("node.gc.maxDiskUsage").(string)
 	gcInterval = viper.Get("node.gc.interval").(string)
+
 }
 
 func registerNode(client *node.Client) {
-	logrus.Info("registering node... (will retry forever)")
+	logrus.Info("registering node... (will retry until completed)")
 	for !node.Registered {
 		client.Register(ipv4, scheme, port, maxConnections)
 		time.Sleep(time.Duration(2) * time.Second)
@@ -99,7 +101,6 @@ func registerNode(client *node.Client) {
 func exec(cmd *cobra.Command, args []string) {
 
 	logger := logrus.New()
-	validate := validator.New()
 
 	if config != "" {
 		viper.SetConfigFile(config)
@@ -123,32 +124,30 @@ func exec(cmd *cobra.Command, args []string) {
 		// during struct validation later
 	}
 
-	gcMaxAtimeAge, _ := time.ParseDuration(gcMaxAtimeAge)
-	gcInterval, _ := time.ParseDuration(gcInterval)
-
-	client := node.NewClient(name, schedulerAddress, logger.WithField("component", "node.client"))
-
-	err := validate.Struct(client)
+	gcMaxAtimeAge, err := time.ParseDuration(gcMaxAtimeAge)
 	if err != nil {
-		logrus.Errorf("Error while validating user inputs or configuration file")
-		logrus.Debugln(err)
-		return
+		logrus.Errorln("failed to parse duration gcMaxAtimeAge")
+		os.Exit(101)
+	}
+	gcInterval, _ := time.ParseDuration(gcInterval)
+	if err != nil {
+		logrus.Errorln("failed to parse duration gcInterval")
+		os.Exit(102)
 	}
 
+	client := node.NewClient(name, schedulerAddress, logger.WithField("component", "node.client"))
 	dw := downloader.NewDownloader(
 		logger.WithField("component", "node.downloader"),
 		dataDir,
 		gcMaxAtimeAge,
 		gcInterval,
-		1024*1024*1024,
+		1024*1024*1024, //TODO: Use real variable
 	)
 	nt := notifier.NewNotifier(
 		client,
 		dataDir,
 		logger.WithField("component", "node.notifier"),
 	)
-	//TODO: add nt & dw validation
-
 	nodeObj := server.NewNode(
 		client,
 		&server.UpstreamConfig{
@@ -164,11 +163,12 @@ func exec(cmd *cobra.Command, args []string) {
 		regexp.MustCompile(proxyRegex),
 		logger.WithField("component", "node.server"),
 	)
-	err = validate.Struct(nodeObj)
+
+	err = utils.Validate(client, nodeObj, nt, dw)
 	if err != nil {
 		logrus.Errorf("Error while validating user inputs or configuration file")
 		logrus.Debugln(err)
-		return
+		os.Exit(103)
 	}
 
 	// Execution

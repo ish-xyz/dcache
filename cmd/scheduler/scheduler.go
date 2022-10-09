@@ -1,4 +1,4 @@
-package cmd
+package scheduler
 
 import (
 	"github.com/go-playground/validator"
@@ -79,23 +79,3 @@ func exec(cmd *cobra.Command, args []string) {
 	)
 	srv.Run()
 }
-
-/*
-===============
-=> config.yaml |
-===============
-scheduler:
-  address: ":8000"
-  maxProcs: 10
-  algo: leastConnections
-  storage:
-    type: memory/redis
-
-// TO ADD:
-  redis:
-	address:
-	username:
-	password:
-	tls:
-tls: {}
-*/
