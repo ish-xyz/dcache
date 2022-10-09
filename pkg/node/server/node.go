@@ -64,7 +64,7 @@ func NewNode(
 }
 
 // ProxyRequestHandler handles the http request using proxy
-func (no *Node) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, proxyPath string) func(http.ResponseWriter, *http.Request) {
+func (no *Node) ProxyRequestHandler(upstreamProxy, peerProxy *httputil.ReverseProxy, proxyPath string) func(http.ResponseWriter, *http.Request) {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 
@@ -73,14 +73,14 @@ func (no *Node) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, pro
 
 			no.Logger.Debugln("regex matched for ", r.RequestURI)
 
-			upstreamUrl := fmt.Sprintf("%s%s", no.Upstream.Address, strings.TrimPrefix(r.RequestURI, proxyPath))
-			upstreamHost := strings.Split(no.Upstream.Address, "://")[1]
+			url := fmt.Sprintf("%s%s", no.Upstream.Address, strings.TrimPrefix(r.RequestURI, proxyPath))
+			host := strings.Split(no.Upstream.Address, "://")[1]
 
 			// prepare HEAD request
-			headReq, err := copyRequest(r.Context(), r, upstreamUrl, upstreamHost, "HEAD")
+			headReq, err := copyRequest(r.Context(), r, url, host, "HEAD")
 			if err != nil {
 				no.Logger.Errorln("Error parsing http resource for head request:", err)
-				no.runProxy(proxy, w, r)
+				no.runProxy(upstreamProxy, w, r)
 				return
 			}
 
@@ -88,11 +88,11 @@ func (no *Node) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, pro
 			headResp, err := runRequestCheck(no.Client.HTTPClient, headReq)
 			if err != nil {
 				no.Logger.Warnln("falling back to upstream, because of error:", err)
-				no.runProxy(proxy, w, r)
+				no.runProxy(upstreamProxy, w, r)
 				return
 			}
 
-			// scenario 1: item is already present in the local cache of the node
+			// File found in local cache, try to serve it
 			item := generateHash(r.URL, headResp.Header["Etag"][0])
 			no.Logger.Debugf("item name: %s", item)
 
@@ -101,7 +101,7 @@ func (no *Node) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, pro
 				selfInfo, err := no.Client.Info()
 				if err != nil {
 					no.Logger.Errorln("failed to contact scheduler to get node info, fallingback to upstream")
-					no.runProxy(proxy, w, r)
+					no.runProxy(upstreamProxy, w, r)
 					return
 				}
 
@@ -110,36 +110,30 @@ func (no *Node) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, pro
 					no.ServeSingleFile(w, r, filepath)
 					return
 				}
+				// TODO: this can be removed but we need to find a way to limit the maximum amount of jumps
 				no.Logger.Warnln("max connections for peer reached, redirecting to upstream")
-				no.runProxy(proxy, w, r)
+				no.runProxy(upstreamProxy, w, r)
 				return
 			}
 
-			// scenario 2: item is not present in the local cache but can be served by a peer
-
-			// NOTE: we can't pass r.Context() to copyRequest because the download
-			// will  most likely be processed after the request has been served and the contex wil get canceled
-			// Remove this comment when a test has been implemented
-
+			// File not found in local cache, try to find a suitable peer
 			peerinfo, err := no.Client.Schedule(item)
 			if err != nil {
 				no.Logger.Errorln("error looking for peer:", err)
-
-				downloaderReq, _ := copyRequest(context.TODO(), r, upstreamUrl, upstreamHost, "GET")
-				no.Downloader.Push(downloaderReq, filepath)
-				no.runProxy(proxy, w, r)
-				return
+				no.runProxy(upstreamProxy, w, r)
+			} else {
+				rewriteToPeer(r, peerinfo)
+				url = fmt.Sprintf("%s://%s:%d/%s", peerinfo.Scheme, peerinfo.IPv4, peerinfo.Port, r.URL.Path)
+				host = fmt.Sprintf("%s:%d", peerinfo.IPv4, peerinfo.Port)
+				no.runProxy(peerProxy, w, r)
 			}
 
-			rewriteToPeer(r, peerinfo)
-			peerUrl := fmt.Sprintf("%s://%s:%d/%s", peerinfo.Scheme, peerinfo.IPv4, peerinfo.Port, r.URL.Path)
-			peerHost := fmt.Sprintf("%s:%d", peerinfo.IPv4, peerinfo.Port)
-
-			no.Logger.Debugln("heating cache from peer:", peerUrl)
-			downloaderReq, _ := copyRequest(context.TODO(), r, peerUrl, peerHost, "GET")
+			no.Logger.Debugln("heating cache from:", url)
+			// NOTE: we can't pass r.Context() to copyRequest because the download
+			// will  most likely be processed after the request has been served and the contex wil get canceled
+			// Remove this comment when a test has been implemented
+			downloaderReq, _ := copyRequest(context.TODO(), r, url, host, "GET")
 			no.Downloader.Push(downloaderReq, filepath)
-
-			no.runProxy(fakeProxy, w, r)
 		}
 	}
 }

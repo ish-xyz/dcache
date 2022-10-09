@@ -10,7 +10,7 @@ node:
   scheduler:
     address: http://scheduler:8000
   gc:
-    maxAtimeAge: 1d
+    maxAtimeAge: 24h
     interval: 5m
     maxDiskUsage: 100G
     minDiskFree: 20G

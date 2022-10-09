@@ -6,7 +6,7 @@ import "github.com/ish-xyz/dcache/pkg/node"
 type Storage interface {
 	WriteNode(node *node.NodeInfo, force bool) error
 	ReadNode(nodeName string) (*node.NodeInfo, error)
-	WriteIndex(hash string, nodeName string, ops string) error
+	WriteIndex(hash string, nodeName string, ops int) error
 	ReadIndex(hash string) (map[string]int, error)
 }
 

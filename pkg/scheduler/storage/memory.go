@@ -7,6 +7,12 @@ import (
 	"github.com/ish-xyz/dcache/pkg/node"
 )
 
+const (
+	Add int = iota
+	Remove
+	Destroy
+)
+
 type MemoryStorage struct {
 	mu    sync.Mutex
 	Index map[string]map[string]int
@@ -39,16 +45,13 @@ func (store *MemoryStorage) ReadNode(nodeName string) (*node.NodeInfo, error) {
 }
 
 // Write nodes statuses for items
-func (store *MemoryStorage) WriteIndex(hash string, nodeName string, ops string) error {
+func (store *MemoryStorage) WriteIndex(hash string, nodeName string, ops int) error {
 
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
 	switch ops {
-	case "delete":
-		delete(store.Index[hash], nodeName)
-		return nil
-	case "add":
+	case Add:
 		if _, ok := store.Index[hash]; ok {
 			store.Index[hash][nodeName] += 1
 		} else {
@@ -57,10 +60,13 @@ func (store *MemoryStorage) WriteIndex(hash string, nodeName string, ops string)
 			}
 		}
 		return nil
-	case "remove":
+	case Remove:
 		if _, ok := store.Index[hash]; ok {
 			store.Index[hash][nodeName] -= 1
 		}
+		return nil
+	case Destroy:
+		delete(store.Index[hash], nodeName)
 		return nil
 	default:
 		return fmt.Errorf("store: invalid operation")

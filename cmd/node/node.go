@@ -129,11 +129,12 @@ func exec(cmd *cobra.Command, args []string) {
 		logrus.Errorln("failed to parse duration gcMaxAtimeAge")
 		os.Exit(101)
 	}
-	gcInterval, _ := time.ParseDuration(gcInterval)
+	gcInterval, err := time.ParseDuration(gcInterval)
 	if err != nil {
 		logrus.Errorln("failed to parse duration gcInterval")
 		os.Exit(102)
 	}
+	//gcMaxDiskUsage, err :=
 
 	client := node.NewClient(name, schedulerAddress, logger.WithField("component", "node.client"))
 	dw := downloader.NewDownloader(

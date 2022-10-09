@@ -72,7 +72,7 @@ func (sch *Scheduler) registerNode(node *node.NodeInfo) error {
 // Called by the client when the download of a given item is completed
 func (sch *Scheduler) addNodeForItem(item, nodeName string) error {
 
-	return sch.Store.WriteIndex(item, nodeName, "add")
+	return sch.Store.WriteIndex(item, nodeName, storage.Add)
 }
 
 // Used by garbage collector when removing items
@@ -83,11 +83,11 @@ func (sch *Scheduler) removeNodeForItem(item, nodeName string, force bool) error
 		return nil
 	}
 	if force {
-		return sch.Store.WriteIndex(item, nodeName, "delete")
+		return sch.Store.WriteIndex(item, nodeName, storage.Add)
 	}
-	sch.Store.WriteIndex(item, nodeName, "remove")
+	sch.Store.WriteIndex(item, nodeName, storage.Remove)
 	if _item[nodeName] <= 0 {
-		sch.Store.WriteIndex(item, nodeName, "delete")
+		sch.Store.WriteIndex(item, nodeName, storage.Destroy)
 	}
 	return nil
 }
