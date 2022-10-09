@@ -1,4 +1,4 @@
-## Distributed Caching Platform for HTTP fileservers.
+## Distributed Caching Platform for file servers.
 
 ![dcache logo](img/logo-low-resolution.png "")
 
