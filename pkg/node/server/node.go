@@ -80,14 +80,16 @@ func (no *Node) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, pro
 			headReq, err := copyRequest(r.Context(), r, upstreamUrl, upstreamHost, "HEAD")
 			if err != nil {
 				no.Logger.Errorln("Error parsing http resource for head request:", err)
-				goto upstream
+				no.runProxy(proxy, w, r)
+				return
 			}
 
 			// HEAD request is necessary to see if the upstream allows us to download/serve certain content
 			headResp, err := runRequestCheck(no.Client.HTTPClient, headReq)
 			if err != nil {
 				no.Logger.Warnln("falling back to upstream, because of error:", err)
-				goto upstream
+				no.runProxy(proxy, w, r)
+				return
 			}
 
 			// scenario 1: item is already present in the local cache of the node
@@ -99,7 +101,8 @@ func (no *Node) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, pro
 				selfInfo, err := no.Client.Info()
 				if err != nil {
 					no.Logger.Errorln("failed to contact scheduler to get node info, fallingback to upstream")
-					goto upstream
+					no.runProxy(proxy, w, r)
+					return
 				}
 
 				no.Logger.Debugln("checking connections, retrieved node info", selfInfo)
@@ -108,7 +111,8 @@ func (no *Node) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, pro
 					return
 				}
 				no.Logger.Warnln("max connections for peer reached, redirecting to upstream")
-				goto upstream
+				no.runProxy(proxy, w, r)
+				return
 			}
 
 			// scenario 2: item is not present in the local cache but can be served by a peer
@@ -123,7 +127,8 @@ func (no *Node) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, pro
 
 				downloaderReq, _ := copyRequest(context.TODO(), r, upstreamUrl, upstreamHost, "GET")
 				no.Downloader.Push(downloaderReq, filepath)
-				goto upstream
+				no.runProxy(proxy, w, r)
+				return
 			}
 
 			rewriteToPeer(r, peerinfo)
@@ -134,18 +139,14 @@ func (no *Node) ProxyRequestHandler(proxy, fakeProxy *httputil.ReverseProxy, pro
 			downloaderReq, _ := copyRequest(context.TODO(), r, peerUrl, peerHost, "GET")
 			no.Downloader.Push(downloaderReq, filepath)
 
-			goto fakeProxy
+			no.runProxy(fakeProxy, w, r)
 		}
-
-	upstream:
-		no.Logger.Infof("request for %s is going to upstream", r.URL.String())
-		proxy.ServeHTTP(w, r)
-		return
-
-	fakeProxy:
-		no.Logger.Infof("request for %s is being cached", r.URL.String())
-		fakeProxy.ServeHTTP(w, r)
 	}
+}
+
+func (no *Node) runProxy(proxy *httputil.ReverseProxy, w http.ResponseWriter, r *http.Request) {
+	no.Logger.Infoln("proxying request for:", r.URL.String())
+	proxy.ServeHTTP(w, r)
 }
 
 func (no *Node) ServeSingleFile(w http.ResponseWriter, r *http.Request, itemPath string) {
