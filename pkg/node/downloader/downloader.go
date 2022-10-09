@@ -113,6 +113,7 @@ func (d *Downloader) Run() {
 			if err != nil {
 				d.Logger.Errorf("failed to delete corrupt file %s with error %v", lastItem.FilePath, err)
 			}
+			//TODO: should notify scheduler that the peer didn't serve the file properly
 			continue
 		}
 		d.Logger.Infof("cached %s in %s", lastItem.Req.URL.String(), lastItem.FilePath)

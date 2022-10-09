@@ -134,7 +134,11 @@ func exec(cmd *cobra.Command, args []string) {
 		logrus.Errorln("failed to parse duration gcInterval")
 		os.Exit(102)
 	}
-	//gcMaxDiskUsage, err :=
+	gcMaxDiskUsage, err := utils.ParseDataSize(gcMaxDiskUsage)
+	if err != nil {
+		logrus.Errorln("failed to parse data size:", err)
+		os.Exit(102)
+	}
 
 	client := node.NewClient(name, schedulerAddress, logger.WithField("component", "node.client"))
 	dw := downloader.NewDownloader(
@@ -142,7 +146,7 @@ func exec(cmd *cobra.Command, args []string) {
 		dataDir,
 		gcMaxAtimeAge,
 		gcInterval,
-		1024*1024*1024, //TODO: Use real variable
+		gcMaxDiskUsage,
 	)
 	nt := notifier.NewNotifier(
 		client,
