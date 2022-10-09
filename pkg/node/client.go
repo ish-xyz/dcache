@@ -10,15 +10,24 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// files operation by code/int
+const (
+	Create = 1 << iota
+	Write
+	Remove
+	Rename
+	Chmod
+)
+
 var (
 	Registered bool
 	apiVersion = "v1"
 )
 
 type Response struct {
-	Status  string                 `json:"status"`
-	Message string                 `json:"message"`
-	Data    map[string]interface{} `json:"data"`
+	Status   string    `json:"status"`
+	Message  string    `json:"message"`
+	NodeInfo *NodeInfo `json:"nodeInfo,omitempty"`
 }
 
 type Client struct {
@@ -214,19 +223,13 @@ func (no *Client) Info() (*NodeInfo, error) {
 		return nil, err
 	}
 
-	no.Logger.Debugln("retrieved data:", resp.Data["node"].(map[string]interface{}))
-
-	//TODO: find a cleaner way
-	nodeInfo := &NodeInfo{
-		Name:           resp.Data["node"].(map[string]interface{})["name"].(string),
-		IPv4:           resp.Data["node"].(map[string]interface{})["ipv4"].(string),
-		Port:           int(resp.Data["node"].(map[string]interface{})["port"].(float64)),
-		Connections:    int(resp.Data["node"].(map[string]interface{})["connections"].(float64)),
-		MaxConnections: int(resp.Data["node"].(map[string]interface{})["maxConnections"].(float64)),
-		Scheme:         resp.Data["node"].(map[string]interface{})["scheme"].(string),
+	if resp.NodeInfo == nil {
+		return nil, fmt.Errorf("node not found")
 	}
 
-	return nodeInfo, nil
+	no.Logger.Debugf("node data retrieved %+v", resp.NodeInfo)
+
+	return resp.NodeInfo, nil
 }
 
 // Notify scheduler that the current node has an item
@@ -236,13 +239,11 @@ func (no *Client) NotifyItem(item string, ops int) error {
 	var resource string
 	var method string
 
-	// 1 -> create
-	// 4 -> remove
 	no.Logger.Debugf("notifying to scheduler: ops -> %d, item -> %s", ops, item)
-	if ops == 1 {
+	if ops == Create {
 		resource = fmt.Sprintf("%s/%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "addNodeForItem", item, no.Name)
 		method = "PUT"
-	} else if ops == 4 {
+	} else if ops == Remove {
 		resource = fmt.Sprintf("%s/%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "removeNodeForItem", item, no.Name)
 		method = "DELETE"
 	} else {
@@ -305,17 +306,11 @@ func (no *Client) Schedule(item string) (*NodeInfo, error) {
 		return nil, fmt.Errorf("scheduler response is not 200")
 	}
 
-	//TODO: find a cleaner way
-	nodeInfo := &NodeInfo{
-		Name:           resp.Data["node"].(map[string]interface{})["name"].(string),
-		IPv4:           resp.Data["node"].(map[string]interface{})["ipv4"].(string),
-		Port:           int(resp.Data["node"].(map[string]interface{})["port"].(float64)),
-		Connections:    int(resp.Data["node"].(map[string]interface{})["connections"].(float64)),
-		MaxConnections: int(resp.Data["node"].(map[string]interface{})["maxConnections"].(float64)),
-		Scheme:         resp.Data["node"].(map[string]interface{})["scheme"].(string),
+	if resp.NodeInfo == nil {
+		return nil, fmt.Errorf("node not found")
 	}
 
-	no.Logger.Debugln("succcessfully found node:", nodeInfo.Name)
+	no.Logger.Debugf("node data retrieved %+v", resp.NodeInfo)
 
-	return nodeInfo, nil
+	return resp.NodeInfo, nil
 }
