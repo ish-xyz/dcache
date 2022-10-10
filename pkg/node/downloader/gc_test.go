@@ -26,7 +26,7 @@ func TestFileTooOld(t *testing.T) {
 		MaxDiskUsage: 1024 * 1024 * 1024,
 		Interval:     time.Duration(10) * time.Second,
 		DataDir:      dataDir,
-		Logger:       logger.WithField("component", "node.downloader.gc"),
+		Logger:       logger.WithField("component", "gc-testing"),
 		Cache:        cache,
 		DryRun:       true,
 	}
@@ -62,7 +62,7 @@ func TestFileAgeOK(t *testing.T) {
 		MaxDiskUsage: 1024 * 1024 * 1024,
 		Interval:     time.Duration(10) * time.Second,
 		DataDir:      dataDir,
-		Logger:       logger.WithField("component", "node.downloader.gc"),
+		Logger:       logger.WithField("component", "gc-testing"),
 		Cache:        cache,
 		DryRun:       true,
 	}
@@ -99,7 +99,7 @@ func TestAtimeTable(t *testing.T) {
 		MaxDiskUsage: 1024 * 1024 * 1024,
 		Interval:     time.Duration(10) * time.Second,
 		DataDir:      dataDir,
-		Logger:       logger.WithField("component", "node.downloader.gc"),
+		Logger:       logger.WithField("component", "gc-testing"),
 		Cache:        cache,
 		DryRun:       true,
 	}
@@ -127,7 +127,7 @@ func TestDirSizeOK(t *testing.T) {
 		MaxDiskUsage: 1024 * 1024 * 1024,
 		Interval:     time.Duration(10) * time.Second,
 		DataDir:      dataDir,
-		Logger:       logger.WithField("component", "node.downloader.gc"),
+		Logger:       logger.WithField("component", "gc-testing"),
 		Cache:        cache,
 		DryRun:       true,
 	}

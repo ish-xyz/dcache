@@ -101,6 +101,7 @@ func (gc *GC) Run() {
 		killswitch.mu.Unlock()
 
 		if gc.DryRun {
+			gc.Logger.Infoln("dry run for testing purposes")
 			return
 		}
 

@@ -35,7 +35,7 @@ type Node struct {
 	Logger         *logrus.Entry          `validate:"required"`
 }
 
-//TODO this can probably be improved, struct is too big and the args on this function are too much
+// TODO this can probably be improved, struct is too big and the args on this function are too much
 func NewNode(
 	nodeObj *node.Client,
 	uconf *UpstreamConfig,
@@ -77,7 +77,7 @@ func (no *Node) ProxyRequestHandler(upstreamProxy, peerProxy *httputil.ReversePr
 			host := strings.Split(no.Upstream.Address, "://")[1]
 
 			// prepare HEAD request
-			headReq, err := copyRequest(r.Context(), r, url, host, "HEAD")
+			headReq, err := copyRequest(r.Context(), r, url, host, http.MethodHead)
 			if err != nil {
 				no.Logger.Errorln("Error parsing http resource for head request:", err)
 				no.runProxy(upstreamProxy, w, r)
@@ -132,7 +132,7 @@ func (no *Node) ProxyRequestHandler(upstreamProxy, peerProxy *httputil.ReversePr
 			// NOTE: we can't pass r.Context() to copyRequest because the download
 			// will  most likely be processed after the request has been served and the contex wil get canceled
 			// Remove this comment when a test has been implemented
-			downloaderReq, _ := copyRequest(context.TODO(), r, url, host, "GET")
+			downloaderReq, _ := copyRequest(context.TODO(), r, url, host, http.MethodGet)
 			err = no.Downloader.Push(downloaderReq, filepath)
 			if err != nil {
 				no.Logger.Errorf("failed to push file %s into downloader queue", filepath)

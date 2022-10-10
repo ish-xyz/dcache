@@ -1,7 +1,11 @@
 package downloader
 
 import (
+	"fmt"
 	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -14,7 +18,7 @@ func TestPushOK(t *testing.T) {
 	maxAtime, _ := time.ParseDuration("5m")
 	interval, _ := time.ParseDuration("5s")
 	d := NewDownloader(
-		logger.WithField("component", "testing"),
+		logger.WithField("component", "downloader-testing"),
 		"/tmp/mydatadir",
 		maxAtime,
 		interval,
@@ -33,4 +37,83 @@ func TestPushOK(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, it.FilePath, "/tmp/mydatadir/myitem")
 	assert.Equal(t, it.Req, myReq)
+}
+
+func TestQueueEmpty(t *testing.T) {
+	logger := logrus.New()
+	maxAtime, _ := time.ParseDuration("5m")
+	interval, _ := time.ParseDuration("5s")
+	d := NewDownloader(
+		logger.WithField("component", "downloader-testing"),
+		"/tmp/mydatadir",
+		maxAtime,
+		interval,
+		10*1024*1024*1024,
+	)
+
+	it, err := d.Pop(false)
+
+	assert.Equal(t, len(d.Queue), 0)
+	assert.NotNil(t, err)
+	assert.Nil(t, it)
+}
+
+func TestRunOK(t *testing.T) {
+
+	logger := logrus.New()
+	myfile := "/tmp/test-data-download"
+	maxAtime, _ := time.ParseDuration("5m")
+	interval, _ := time.ParseDuration("5s")
+	d := NewDownloader(
+		logger.WithField("component", "downloader-testing"),
+		"/tmp/mydatadir",
+		maxAtime,
+		interval,
+		10*1024*1024*1024,
+	)
+	d.DryRun = true
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, `{"status": "somestatus"}`)
+	}))
+	myreq, myreqErr := http.NewRequest(http.MethodGet, srv.URL, nil)
+	d.Push(myreq, myfile)
+	d.Run()
+	statData, statErr := os.Stat(myfile)
+
+	assert.Nil(t, myreqErr)
+	assert.Nil(t, statErr)
+	assert.Equal(t, statData.Name(), filepath.Base(myfile))
+
+	os.Remove("/tmp/test-data-download")
+}
+
+func TestRunDownloadFailed(t *testing.T) {
+
+	logger := logrus.New()
+	myfile := "/tmp/test-data-download"
+	maxAtime, _ := time.ParseDuration("5m")
+	interval, _ := time.ParseDuration("5s")
+	d := NewDownloader(
+		logger.WithField("component", "downloader-testing"),
+		"/tmp/mydatadir",
+		maxAtime,
+		interval,
+		10*1024*1024*1024,
+	)
+	d.DryRun = true
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	myreq, myreqErr := http.NewRequest(http.MethodGet, srv.URL, nil)
+	d.Push(myreq, myfile)
+	d.Run()
+	statData, statErr := os.Stat(myfile)
+
+	assert.Nil(t, myreqErr)
+	assert.NotNil(t, statErr)
+	assert.Equal(t, statData, nil)
+
+	os.Remove("/tmp/test-data-download")
 }

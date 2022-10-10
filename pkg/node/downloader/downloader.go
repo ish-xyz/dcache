@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -25,6 +26,7 @@ type Downloader struct {
 	Client *http.Client  `validate:"required"`
 	Logger *logrus.Entry `validate:"required"`
 	GC     *GC           `validate:"required"`
+	DryRun bool
 }
 
 type Item struct {
@@ -55,6 +57,7 @@ func NewDownloader(log *logrus.Entry, dataDir string, maxAtime, interval time.Du
 		Logger: log,
 		Client: &http.Client{},
 		GC:     gc,
+		DryRun: false,
 	}
 }
 
@@ -93,20 +96,24 @@ func (d *Downloader) download(item *Item) error {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("source returned non 200 status code while trying to download %s", item.Req.URL.String())
+	}
+
 	file, err := os.Create(tmpFilePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create new empty temporary file: %v", err)
 	}
 	defer file.Close()
 
 	size, err := io.Copy(file, resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to memory copy into file")
+		return fmt.Errorf("failed to memory copy into file: %v", err)
 	}
 
 	err = os.Rename(tmpFilePath, item.FilePath)
 	if err != nil {
-		return fmt.Errorf("failed to rename temporary file")
+		return fmt.Errorf("failed to rename temporary file: %v", err)
 	}
 
 	if resp.Header.Get("content-length") != fmt.Sprintf("%d", size) {
@@ -136,5 +143,9 @@ func (d *Downloader) Run() {
 			continue
 		}
 		d.Logger.Infof("cached %s in %s", lastItem.Req.URL.String(), lastItem.FilePath)
+		if d.DryRun {
+			d.Logger.Infoln("dry run for testing purposes")
+			return
+		}
 	}
 }
