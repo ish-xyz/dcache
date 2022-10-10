@@ -129,6 +129,8 @@ func (d *Downloader) Run() {
 			d.Logger.Warningln("kill switch enabled, unable to download new files")
 		} else {
 			lastItem, _ := d.Pop(true)
+			d.Logger.Infof("downloading %s in %s", lastItem.Req.URL.String(), lastItem.FilePath)
+
 			err := d.download(lastItem)
 			if err != nil {
 				d.Logger.Errorf("failed to download item %s with error: %v", lastItem.FilePath, err)
@@ -140,8 +142,6 @@ func (d *Downloader) Run() {
 					}
 				}
 				//TODO: should notify scheduler that the peer didn't serve the file properly
-			} else {
-				d.Logger.Infof("cached %s in %s", lastItem.Req.URL.String(), lastItem.FilePath)
 			}
 		}
 
