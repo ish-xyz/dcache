@@ -137,7 +137,9 @@ func (no *Node) ProxyRequestHandler(upstreamProxy, peerProxy *httputil.ReversePr
 			if err != nil {
 				no.Logger.Errorf("failed to push file %s into downloader queue", filepath)
 			}
+			return
 		}
+		no.runProxy(upstreamProxy, w, r)
 	}
 }
 
