@@ -27,9 +27,10 @@ func TestPushOK(t *testing.T) {
 	)
 
 	d.Push(myReq, "/tmp/mydatadir/myitem")
-	it := d.Pop()
+	it, err := d.Pop(false)
 
 	assert.Equal(t, len(d.Queue), 0)
+	assert.Nil(t, err)
 	assert.Equal(t, it.FilePath, "/tmp/mydatadir/myitem")
 	assert.Equal(t, it.Req, myReq)
 }

@@ -133,7 +133,10 @@ func (no *Node) ProxyRequestHandler(upstreamProxy, peerProxy *httputil.ReversePr
 			// will  most likely be processed after the request has been served and the contex wil get canceled
 			// Remove this comment when a test has been implemented
 			downloaderReq, _ := copyRequest(context.TODO(), r, url, host, "GET")
-			no.Downloader.Push(downloaderReq, filepath)
+			err = no.Downloader.Push(downloaderReq, filepath)
+			if err != nil {
+				no.Logger.Errorf("failed to push file %s into downloader queue", filepath)
+			}
 		}
 	}
 }

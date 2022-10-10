@@ -58,27 +58,42 @@ func NewDownloader(log *logrus.Entry, dataDir string, maxAtime, interval time.Du
 	}
 }
 
-func (d *Downloader) Push(req *http.Request, filepath string) {
+func (d *Downloader) Push(req *http.Request, filepath string) error {
 	it := &Item{
 		Req:      req,
 		FilePath: filepath,
 	}
-	d.Queue <- it
+	select {
+	case d.Queue <- it:
+		return nil
+	default:
+		return fmt.Errorf("buffer is full")
+	}
 }
 
-func (d *Downloader) Pop() *Item {
-	return <-d.Queue
+func (d *Downloader) Pop(wait bool) (*Item, error) {
+	if wait {
+		return <-d.Queue, nil
+	}
+
+	select {
+	case it := <-d.Queue:
+		return it, nil
+	default:
+		return nil, fmt.Errorf("empty queue")
+	}
 }
 
 func (d *Downloader) download(item *Item) error {
 
+	tmpFilePath := fmt.Sprintf("%s.tmp", item.FilePath)
 	resp, err := d.Client.Do(item.Req)
 	if err != nil {
 		return fmt.Errorf("request error: %v", err)
 	}
 	defer resp.Body.Close()
 
-	file, err := os.Create(item.FilePath)
+	file, err := os.Create(tmpFilePath)
 	if err != nil {
 		return err
 	}
@@ -87,6 +102,11 @@ func (d *Downloader) download(item *Item) error {
 	size, err := io.Copy(file, resp.Body)
 	if err != nil {
 		return fmt.Errorf("failed to memory copy into file")
+	}
+
+	err = os.Rename(tmpFilePath, item.FilePath)
+	if err != nil {
+		return fmt.Errorf("failed to rename temporary file")
 	}
 
 	if resp.Header.Get("content-length") != fmt.Sprintf("%d", size) {
@@ -103,7 +123,7 @@ func (d *Downloader) Run() {
 			continue
 		}
 
-		lastItem := d.Pop()
+		lastItem, _ := d.Pop(true)
 		err := d.download(lastItem)
 		if err != nil {
 			d.Logger.Errorf("failed to download item %s with error: %v", lastItem.FilePath, err)

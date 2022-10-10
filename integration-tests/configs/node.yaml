@@ -3,14 +3,13 @@ node:
   port: 8100
   dataDir: /var/dcache/data
   upstream:
-    address: https://ish-ar.io
+    address: http://212.183.159.230
     insecure: true
   proxy:
-    regex: ".*distribution.*"
+    regex: ".*zip$"
   scheduler:
     address: http://scheduler:8000
   gc:
     maxAtimeAge: 24h
-    interval: 2s
+    interval: 6h
     maxDiskUsage: 100G
- 
