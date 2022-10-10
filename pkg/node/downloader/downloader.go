@@ -86,7 +86,7 @@ func (d *Downloader) Pop(wait bool) (*Item, error) {
 
 func (d *Downloader) download(item *Item) error {
 
-	tmpFilePath := fmt.Sprintf("%s.tmp", item.FilePath)
+	tmpFilePath := fmt.Sprintf("/tmp/%s", filepath.Base(item.FilePath))
 	resp, err := d.Client.Do(item.Req)
 	if err != nil {
 		return fmt.Errorf("request error: %v", err)
