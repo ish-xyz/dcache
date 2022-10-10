@@ -117,3 +117,32 @@ func TestRunDownloadFailed(t *testing.T) {
 
 	os.Remove("/tmp/test-data-download")
 }
+
+func TestRunDownloadKillSwitch(t *testing.T) {
+
+	logger := logrus.New()
+	myfile := "/tmp/test-data-download"
+	maxAtime, _ := time.ParseDuration("5m")
+	interval, _ := time.ParseDuration("5s")
+	d := NewDownloader(
+		logger.WithField("component", "downloader-testing"),
+		"/tmp/mydatadir",
+		maxAtime,
+		interval,
+		10*1024*1024*1024,
+	)
+	d.DryRun = true
+	killswitch.Trigger = true
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	myreq, myreqErr := http.NewRequest(http.MethodGet, srv.URL, nil)
+	d.Push(myreq, myfile)
+	d.Run()
+
+	assert.Nil(t, myreqErr)
+	assert.Equal(t, 1, len(d.Queue))
+
+	os.Remove("/tmp/test-data-download")
+}

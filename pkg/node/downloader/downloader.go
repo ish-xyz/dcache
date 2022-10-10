@@ -97,7 +97,7 @@ func (d *Downloader) download(item *Item) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("source returned non 200 status code while trying to download %s", item.Req.URL.String())
+		return fmt.Errorf("received non 200 status code while trying to download %s", item.Req.URL.String())
 	}
 
 	file, err := os.Create(tmpFilePath)
@@ -126,23 +126,25 @@ func (d *Downloader) download(item *Item) error {
 func (d *Downloader) Run() {
 	for {
 		if killswitch.Trigger {
-			d.Logger.Warningln("Max disk space reached, unable to download new files")
-			continue
+			d.Logger.Warningln("kill switch enabled, unable to download new files")
+		} else {
+			lastItem, _ := d.Pop(true)
+			err := d.download(lastItem)
+			if err != nil {
+				d.Logger.Errorf("failed to download item %s with error: %v", lastItem.FilePath, err)
+				if _, statErr := os.Stat(lastItem.FilePath); statErr == nil {
+					d.Logger.Infof("removing file %s", lastItem.FilePath)
+					err = os.Remove(lastItem.FilePath)
+					if err != nil {
+						d.Logger.Errorf("failed to delete corrupt file %s with error %v", lastItem.FilePath, err)
+					}
+				}
+				//TODO: should notify scheduler that the peer didn't serve the file properly
+			} else {
+				d.Logger.Infof("cached %s in %s", lastItem.Req.URL.String(), lastItem.FilePath)
+			}
 		}
 
-		lastItem, _ := d.Pop(true)
-		err := d.download(lastItem)
-		if err != nil {
-			d.Logger.Errorf("failed to download item %s with error: %v", lastItem.FilePath, err)
-			d.Logger.Infof("removing file %s", lastItem.FilePath)
-			err = os.Remove(lastItem.FilePath)
-			if err != nil {
-				d.Logger.Errorf("failed to delete corrupt file %s with error %v", lastItem.FilePath, err)
-			}
-			//TODO: should notify scheduler that the peer didn't serve the file properly
-			continue
-		}
-		d.Logger.Infof("cached %s in %s", lastItem.Req.URL.String(), lastItem.FilePath)
 		if d.DryRun {
 			d.Logger.Infoln("dry run for testing purposes")
 			return
