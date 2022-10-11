@@ -1,6 +1,10 @@
 package storage
 
-import "github.com/ish-xyz/dcache/pkg/node"
+import (
+	"fmt"
+
+	"github.com/ish-xyz/dcache/pkg/node"
+)
 
 // Write() -> location,
 type Storage interface {
@@ -11,16 +15,19 @@ type Storage interface {
 }
 
 // Initialise storage for scheduler
-func NewStorage(storageType string, opts map[string]string) Storage {
+func NewStorage(storageType string, opts map[string]string) (Storage, error) {
+	if storageType == "memory" {
+		indexStore := map[string]map[string]int{
+			"init": {
+				"init": 1,
+			},
+		}
 
-	indexStore := map[string]map[string]int{
-		"init": {
-			"init": 1,
-		},
+		return &MemoryStorage{
+			Index: indexStore,
+			Nodes: map[string]*node.NodeInfo{},
+		}, nil
 	}
 
-	return &MemoryStorage{
-		Index: indexStore,
-		Nodes: map[string]*node.NodeInfo{},
-	}
+	return nil, fmt.Errorf("invalid backend type")
 }

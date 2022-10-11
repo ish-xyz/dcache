@@ -53,13 +53,13 @@ func ParseDataSize(dataSize string) (int, error) {
 	case "T":
 		return value * TB, nil
 	case "P":
-		//TODO: find a solution for bin int
+		//TODO: find a solution for big int
 		if value > 9000 {
 			return 0, fmt.Errorf("number too big %dPB to bytes it might cause overflow", value)
 		}
 		return value * PB, nil
 	case "E":
-		//TODO: find a solution for bin int
+		//TODO: find a solution for big int
 		if value > 9 {
 			return 0, fmt.Errorf("number too big %dEB to bytes it might cause overflow", value)
 		}

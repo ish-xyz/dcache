@@ -1,6 +1,8 @@
 package scheduler
 
 import (
+	"os"
+
 	"github.com/go-playground/validator"
 	"github.com/ish-xyz/dcache/pkg/scheduler"
 	"github.com/ish-xyz/dcache/pkg/scheduler/storage"
@@ -53,7 +55,7 @@ func exec(cmd *cobra.Command, args []string) {
 		err := viper.ReadInConfig()
 		if err != nil {
 			logrus.Errorf("fatal error reading config file: %w", err)
-			return
+			os.Exit(101)
 		}
 		mappping()
 	}
@@ -64,10 +66,14 @@ func exec(cmd *cobra.Command, args []string) {
 
 	validate := validator.New()
 
-	store := storage.NewStorage(
+	store, err := storage.NewStorage(
 		viper.Get("scheduler.storage.type").(string),
 		map[string]string{}, // TODO: add actual options from CLI
 	)
+	if err != nil {
+		logrus.Errorln(err)
+		os.Exit(102)
+	}
 	sch := scheduler.NewScheduler(
 		validate,
 		store,
