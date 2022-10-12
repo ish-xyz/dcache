@@ -23,7 +23,7 @@ type UpstreamConfig struct {
 }
 
 type Node struct {
-	Client         *node.Client           `validate:"required"`
+	Client         node.NodeClient        `validate:"required"`
 	Upstream       *UpstreamConfig        `validate:"required,dive"`
 	DataDir        string                 `validate:"required"` // Add dir validator
 	Scheme         string                 `validate:"required"`
@@ -37,7 +37,7 @@ type Node struct {
 
 // TODO this can probably be improved, struct is too big and the args on this function are too much
 func NewNode(
-	nodeObj *node.Client,
+	nc node.NodeClient,
 	uconf *UpstreamConfig,
 	dataDir,
 	scheme,
@@ -50,7 +50,7 @@ func NewNode(
 ) *Node {
 
 	return &Node{
-		Client:         nodeObj,
+		Client:         nc,
 		Upstream:       uconf,
 		DataDir:        strings.TrimSuffix(dataDir, "/"),
 		Scheme:         strings.TrimSuffix(scheme, "://"),
@@ -85,7 +85,7 @@ func (no *Node) ProxyRequestHandler(upstreamProxy, peerProxy *httputil.ReversePr
 			}
 
 			// HEAD request is necessary to see if the upstream allows us to download/serve certain content
-			headResp, err := runRequestCheck(no.Client.HTTPClient, headReq)
+			headResp, err := runRequestCheck(no.Client.GetHttpClient(), headReq)
 			if err != nil {
 				no.Logger.Warnln("falling back to upstream, because of error:", err)
 				no.runProxy(upstreamProxy, w, r)

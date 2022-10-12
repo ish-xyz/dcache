@@ -46,6 +46,17 @@ type NodeInfo struct {
 	Scheme         string `json:"scheme" validate:"required"`
 }
 
+type NodeClient interface {
+	Request(method string, resource string, headers map[string]string, body []byte) (*http.Response, error)
+	Register(ipv4, scheme string, port, maxconn int) error
+	AddConnection() error
+	RemoveConnection() error
+	Info() (*NodeInfo, error)
+	NotifyItem(item string, ops int) error
+	Schedule(item string) (*NodeInfo, error)
+	GetHttpClient() *http.Client
+}
+
 func NewClient(
 	name string,
 	scheduler string,
@@ -313,4 +324,8 @@ func (no *Client) Schedule(item string) (*NodeInfo, error) {
 	no.Logger.Debugf("node data retrieved %+v", resp.NodeInfo)
 
 	return resp.NodeInfo, nil
+}
+
+func (no *Client) GetHttpClient() *http.Client {
+	return no.HTTPClient
 }

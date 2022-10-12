@@ -140,7 +140,7 @@ func exec(cmd *cobra.Command, args []string) {
 		os.Exit(102)
 	}
 
-	client := node.NewClient(name, schedulerAddress, logger.WithField("component", "node.client"))
+	nodeClient := node.NewClient(name, schedulerAddress, logger.WithField("component", "node.client"))
 	dw := downloader.NewDownloader(
 		logger.WithField("component", "node.downloader"),
 		dataDir,
@@ -149,12 +149,12 @@ func exec(cmd *cobra.Command, args []string) {
 		gcMaxDiskUsage,
 	)
 	nt := notifier.NewNotifier(
-		client,
+		nodeClient,
 		dataDir,
 		logger.WithField("component", "node.notifier"),
 	)
-	nodeObj := server.NewNode(
-		client,
+	srv := server.NewNode(
+		nodeClient,
 		&server.UpstreamConfig{
 			Address:  upstream,
 			Insecure: insecure,
@@ -169,7 +169,7 @@ func exec(cmd *cobra.Command, args []string) {
 		logger.WithField("component", "node.server"),
 	)
 
-	err = utils.Validate(client, nodeObj, nt, dw)
+	err = utils.Validate(nodeClient, srv, nt, dw)
 	if err != nil {
 		logrus.Errorf("Error while validating user inputs or configuration file")
 		logrus.Debugln(err)
@@ -177,11 +177,11 @@ func exec(cmd *cobra.Command, args []string) {
 	}
 
 	// Execution
-	registerNode(client)
+	registerNode(nodeClient)
 
 	logrus.Infoln("starting routines...")
 	go dw.Run()
 	go nt.Watch()
 	go dw.GC.Run()
-	nodeObj.Run()
+	srv.Run()
 }

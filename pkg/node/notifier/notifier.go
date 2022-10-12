@@ -9,13 +9,13 @@ import (
 )
 
 type Notifier struct {
-	NodeClient *node.Client
+	NodeClient node.NodeClient
 	DataDir    string
 	Logger     *logrus.Entry
 	DryRun     bool
 }
 
-func NewNotifier(nc *node.Client, dataDir string, log *logrus.Entry) *Notifier {
+func NewNotifier(nc node.NodeClient, dataDir string, log *logrus.Entry) *Notifier {
 	return &Notifier{
 		NodeClient: nc,
 		DataDir:    dataDir,
