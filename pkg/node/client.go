@@ -92,13 +92,13 @@ func (no *Client) Register(ipv4, scheme string, port, maxconn int) error {
 	}
 
 	no.Logger.Debugln("registering node to: ", resource)
-	no.Logger.Debugln("sending data %s", string(payload))
+	no.Logger.Debugf("sending data %s", string(payload))
 
 	headers := map[string]string{"Content-Type": "application/json"}
 
 	rawResp, err := no.Request("POST", resource, headers, payload)
 	if err != nil {
-		no.Logger.Debugln("error requesting resource: %s", resource)
+		no.Logger.Debugf("error requesting resource: %s", resource)
 		return err
 	}
 	defer rawResp.Body.Close()
@@ -134,7 +134,7 @@ func (no *Client) AddConnection() error {
 
 	rawResp, err := no.Request("PUT", resource, headers, nil)
 	if err != nil {
-		no.Logger.Debugln("error requesting resource: %s", resource)
+		no.Logger.Debugf("error requesting resource: %s", resource)
 		return err
 	}
 	defer rawResp.Body.Close()
@@ -170,7 +170,7 @@ func (no *Client) RemoveConnection() error {
 
 	rawResp, err := no.Request("DELETE", resource, headers, nil)
 	if err != nil {
-		no.Logger.Debugln("error requesting resource: %s", resource)
+		no.Logger.Debugf("error requesting resource: %s", resource)
 		return err
 	}
 	defer rawResp.Body.Close()
@@ -206,7 +206,7 @@ func (no *Client) Info() (*NodeInfo, error) {
 
 	rawResp, err := no.Request("GET", resource, headers, nil)
 	if err != nil {
-		no.Logger.Debugln("error requesting resource: %s", resource)
+		no.Logger.Debugf("error requesting resource: %s", resource)
 		return nil, err
 	}
 	defer rawResp.Body.Close()
@@ -256,7 +256,7 @@ func (no *Client) NotifyItem(item string, ops int) error {
 
 	rawResp, err := no.Request(method, resource, headers, nil)
 	if err != nil {
-		no.Logger.Debugln("error requesting resource: %s", resource)
+		no.Logger.Debugf("error requesting resource: %s", resource)
 		return err
 	}
 	defer rawResp.Body.Close()
@@ -280,7 +280,7 @@ func (no *Client) NotifyItem(item string, ops int) error {
 func (no *Client) Schedule(item string) (*NodeInfo, error) {
 
 	var resp Response
-	no.Logger.Debugln("scheduling dowload for item %s", item)
+	no.Logger.Debugf("scheduling dowload for item %s", item)
 
 	resource := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "schedule", item)
 	headers := map[string]string{
@@ -289,7 +289,7 @@ func (no *Client) Schedule(item string) (*NodeInfo, error) {
 
 	rawResp, err := no.Request("GET", resource, headers, nil)
 	if err != nil {
-		no.Logger.Debugln("error requesting resource: %s", resource)
+		no.Logger.Debugf("error requesting resource: %s", resource)
 		return nil, err
 	}
 	defer rawResp.Body.Close()
@@ -302,7 +302,7 @@ func (no *Client) Schedule(item string) (*NodeInfo, error) {
 	}
 
 	if rawResp.StatusCode != 200 {
-		no.Logger.Debugln("scheduler response is not 200: %s", resp.Message)
+		no.Logger.Debugf("scheduler response is not 200: %s", resp.Message)
 		return nil, fmt.Errorf("scheduler response is not 200")
 	}
 

@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	Version = "unset"
 	rootCmd = &cobra.Command{
 		Use:   "dcache",
 		Short: "Distributed Caching Platform",

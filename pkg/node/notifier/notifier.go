@@ -12,6 +12,7 @@ type Notifier struct {
 	NodeClient *node.Client
 	DataDir    string
 	Logger     *logrus.Entry
+	DryRun     bool
 }
 
 func NewNotifier(nc *node.Client, dataDir string, log *logrus.Entry) *Notifier {
@@ -19,6 +20,7 @@ func NewNotifier(nc *node.Client, dataDir string, log *logrus.Entry) *Notifier {
 		NodeClient: nc,
 		DataDir:    dataDir,
 		Logger:     log,
+		DryRun:     false,
 	}
 }
 
@@ -61,12 +63,18 @@ func (nt *Notifier) Watch() error {
 					return
 				}
 				nt.Logger.Errorln("watcher error:", err)
+
+			default:
+				if nt.DryRun {
+					return
+				}
 			}
 		}
 	}()
 
 	err = watcher.Add(nt.DataDir)
 	if err != nil {
+		nt.Logger.Errorln("notifier error:", err)
 		return err
 	}
 	<-done
