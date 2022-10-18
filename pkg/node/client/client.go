@@ -68,7 +68,7 @@ func NewClient(
 	}
 }
 
-func (no *Client) Request(method string, resource string, headers map[string]string, body []byte) (*http.Response, error) {
+func (c *Client) Request(method string, resource string, headers map[string]string, body []byte) (*http.Response, error) {
 
 	//TODO: bake in apiversion and scheduler address here
 
@@ -78,10 +78,10 @@ func (no *Client) Request(method string, resource string, headers map[string]str
 		req.Header.Set(k, v)
 	}
 
-	return no.HTTPClient.Do(req)
+	return c.HTTPClient.Do(req)
 }
 
-func (no *Client) CreateNode(ipv4, scheme string, port, maxconn int) error {
+func (c *Client) CreateNode(ipv4, scheme string, port, maxconn int) error {
 
 	var resp Response
 
@@ -89,9 +89,9 @@ func (no *Client) CreateNode(ipv4, scheme string, port, maxconn int) error {
 	resource := "nodes"
 	headers := map[string]string{"Content-Type": "application/json"}
 
-	url := fmt.Sprintf("%s/%s/%s", no.SchedulerAddress, apiVersion, resource)
+	url := fmt.Sprintf("%s/%s/%s", c.SchedulerAddress, apiVersion, resource)
 	node := &node.NodeSchema{
-		Name:           no.Name,
+		Name:           c.Name,
 		IPv4:           ipv4,
 		Port:           port,
 		Scheme:         scheme,
@@ -103,12 +103,12 @@ func (no *Client) CreateNode(ipv4, scheme string, port, maxconn int) error {
 		return err
 	}
 
-	no.Logger.Debugln("calling url: ", url)
-	no.Logger.Debugf("sending data %s", string(payload))
+	c.Logger.Debugln("calling url: ", url)
+	c.Logger.Debugf("sending data %s", string(payload))
 
-	rawResp, err := no.Request(method, url, headers, payload)
+	rawResp, err := c.Request(method, url, headers, payload)
 	if err != nil {
-		no.Logger.Debugf("error requesting url: %s", url)
+		c.Logger.Debugf("error requesting url: %s", url)
 		return err
 	}
 	defer rawResp.Body.Close()
@@ -120,17 +120,17 @@ func (no *Client) CreateNode(ipv4, scheme string, port, maxconn int) error {
 	}
 
 	if resp.Status != "success" {
-		no.Logger.Debugf("error received from scheduler while registering: %s", resp.Message)
+		c.Logger.Debugf("error received from scheduler while registering: %s", resp.Message)
 		return fmt.Errorf(resp.Message)
 	}
 
 	Registered = true
-	no.Logger.Infoln("node registration completed.")
+	c.Logger.Infoln("node registration completed.")
 	return nil
 }
 
 // add 1 node connection on the scheduler
-func (no *Client) AddConnection() error {
+func (c *Client) AddConnection() error {
 
 	var resp Response
 
@@ -138,13 +138,13 @@ func (no *Client) AddConnection() error {
 	resource := "connections"
 	headers := map[string]string{"Content-Type": "application/json"}
 
-	url := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, resource, no.Name)
+	url := fmt.Sprintf("%s/%s/%s/%s", c.SchedulerAddress, apiVersion, resource, c.Name)
 
-	no.Logger.Debugln("adding 1 connection")
+	c.Logger.Debugln("adding 1 connection")
 
-	rawResp, err := no.Request(method, url, headers, nil)
+	rawResp, err := c.Request(method, url, headers, nil)
 	if err != nil {
-		no.Logger.Debugf("error requesting url: %s", url)
+		c.Logger.Debugf("error requesting url: %s", url)
 		return err
 	}
 	defer rawResp.Body.Close()
@@ -152,38 +152,38 @@ func (no *Client) AddConnection() error {
 	body, _ := ioutil.ReadAll(rawResp.Body)
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		no.Logger.Debugln("error decoding payload:", err)
+		c.Logger.Debugln("error decoding payload:", err)
 		return err
 	}
 
 	if resp.Status != "success" {
-		no.Logger.Debugln(resp.Message)
+		c.Logger.Debugln(resp.Message)
 		return fmt.Errorf(resp.Message)
 	}
 
-	no.Logger.Debugln("connection added successfully")
+	c.Logger.Debugln("connection added successfully")
 	return nil
 }
 
 // remove 1 node connection on the scheduler
-func (no *Client) RemoveConnection() error {
+func (c *Client) RemoveConnection() error {
 
 	var resp Response
 
 	method := "DELETE"
 	resource := "connections"
 
-	url := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, resource, no.Name)
+	url := fmt.Sprintf("%s/%s/%s/%s", c.SchedulerAddress, apiVersion, resource, c.Name)
 
-	no.Logger.Debugln("removing 1 connection")
+	c.Logger.Debugln("removing 1 connection")
 
 	headers := map[string]string{
 		"Content-Type": "application/json",
 	}
 
-	rawResp, err := no.Request(method, url, headers, nil)
+	rawResp, err := c.Request(method, url, headers, nil)
 	if err != nil {
-		no.Logger.Debugf("error requesting url: %s", url)
+		c.Logger.Debugf("error requesting url: %s", url)
 		return err
 	}
 	defer rawResp.Body.Close()
@@ -191,21 +191,21 @@ func (no *Client) RemoveConnection() error {
 	body, _ := ioutil.ReadAll(rawResp.Body)
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		no.Logger.Debugln("error decoding payload:", err, string(body))
+		c.Logger.Debugln("error decoding payload:", err, string(body))
 		return err
 	}
 
 	if resp.Status != "success" {
-		no.Logger.Debugf("error received from scheduler: %s", resp.Message)
+		c.Logger.Debugf("error received from scheduler: %s", resp.Message)
 		return fmt.Errorf(resp.Message)
 	}
 
-	no.Logger.Debugln("connection removed successfully")
+	c.Logger.Debugln("connection removed successfully")
 	return nil
 }
 
 // returns a map[string]interface{} with the node stat from the scheduler storage
-func (no *Client) GetNode(name string) (*node.NodeSchema, error) {
+func (c *Client) GetNode(name string) (*node.NodeSchema, error) {
 
 	var resp Response
 
@@ -213,20 +213,20 @@ func (no *Client) GetNode(name string) (*node.NodeSchema, error) {
 	resource := "nodes"
 
 	if name == "self" {
-		name = no.Name
+		name = c.Name
 	}
 
-	url := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, resource, name)
+	url := fmt.Sprintf("%s/%s/%s/%s", c.SchedulerAddress, apiVersion, resource, name)
 
-	no.Logger.Debugln("getting node information")
+	c.Logger.Debugln("getting node information")
 
 	headers := map[string]string{
 		"Content-Type": "application/json",
 	}
 
-	rawResp, err := no.Request(method, url, headers, nil)
+	rawResp, err := c.Request(method, url, headers, nil)
 	if err != nil {
-		no.Logger.Debugf("error requesting url: %s", url)
+		c.Logger.Debugf("error requesting url: %s", url)
 		return nil, err
 	}
 	defer rawResp.Body.Close()
@@ -234,12 +234,12 @@ func (no *Client) GetNode(name string) (*node.NodeSchema, error) {
 	body, _ := ioutil.ReadAll(rawResp.Body)
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		no.Logger.Warnln("error decoding payload:", err)
+		c.Logger.Warnln("error decoding payload:", err)
 		return nil, err
 	}
 
 	if resp.Status != "success" {
-		no.Logger.Debugf("error received from scheduler: %s", resp.Message)
+		c.Logger.Debugf("error received from scheduler: %s", resp.Message)
 		return nil, err
 	}
 
@@ -247,27 +247,62 @@ func (no *Client) GetNode(name string) (*node.NodeSchema, error) {
 		return nil, fmt.Errorf("node not found")
 	}
 
-	no.Logger.Debugf("node data retrieved %+v", resp.Node)
+	c.Logger.Debugf("node data retrieved %+v", resp.Node)
 
 	return resp.Node, nil
 }
 
-func (no *Client) RunNotifierSubscriber() {}
+/*
+TODO:
+func (c *Client) NotifyItems() {
 
-func (no *Client) DeleteItem(item string) error {
+		create channel
+		pass channel to notifier
+		wait for channel events
+
+		for {
+
+				lastItem, _ := <- c.EventsChan
+				d.Logger.Infof("downloading %s in %s", lastItem.Req.URL.String(), lastItem.FilePath)
+
+				err := d.download(lastItem)
+				if err != nil {
+					d.Logger.Errorf("failed to download item %s with error: %v", lastItem.FilePath, err)
+					if _, statErr := os.Stat(lastItem.FilePath); statErr == nil {
+						d.Logger.Infof("removing file %s", lastItem.FilePath)
+						err = os.Remove(lastItem.FilePath)
+						if err != nil {
+							d.Logger.Errorf("failed to delete corrupt file %s with error %v", lastItem.FilePath, err)
+						}
+					}
+					//TODO: should notify scheduler that the peer didn't serve the file properly
+				}
+			}
+
+			if d.DryRun {
+				d.Logger.Infoln("dry run for testing purposes")
+				return
+			}
+		}
+	}
+
+}
+*/
+
+func (c *Client) DeleteItem(item string) error {
 
 	var resp Response
 	resource := "items"
 	method := "DELETE"
 	headers := map[string]string{"Content-Type": "application/json"}
 
-	url := fmt.Sprintf("%s/%s/%s/%s/%s", no.SchedulerAddress, apiVersion, resource, item, no.Name)
+	url := fmt.Sprintf("%s/%s/%s/%s/%s", c.SchedulerAddress, apiVersion, resource, item, c.Name)
 
-	no.Logger.Debugf("item created, notifying to scheduler: %s", item)
+	c.Logger.Debugf("item created, notifying to scheduler: %s", item)
 
-	rawResp, err := no.Request(method, url, headers, nil)
+	rawResp, err := c.Request(method, url, headers, nil)
 	if err != nil {
-		no.Logger.Debugf("error requesting url: %s", url)
+		c.Logger.Debugf("error requesting url: %s", url)
 		return err
 	}
 	defer rawResp.Body.Close()
@@ -275,31 +310,31 @@ func (no *Client) DeleteItem(item string) error {
 	body, _ := ioutil.ReadAll(rawResp.Body)
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		no.Logger.Debugln("error decoding payload:", err)
+		c.Logger.Debugln("error decoding payload:", err)
 		return err
 	}
 
 	if resp.Status != "success" {
-		no.Logger.Debugf("error received from scheduler: %s", resp.Message)
+		c.Logger.Debugf("error received from scheduler: %s", resp.Message)
 		return err
 	}
 	return nil
 }
 
-func (no *Client) CreateItem(item string) error {
+func (c *Client) CreateItem(item string) error {
 
 	var resp Response
 	resource := "items"
 	method := "POST"
 	headers := map[string]string{"Content-Type": "application/json"}
 
-	url := fmt.Sprintf("%s/%s/%s/%s/%s", no.SchedulerAddress, apiVersion, resource, item, no.Name)
+	url := fmt.Sprintf("%s/%s/%s/%s/%s", c.SchedulerAddress, apiVersion, resource, item, c.Name)
 
-	no.Logger.Debugf("item created, notifying to scheduler: %s", item)
+	c.Logger.Debugf("item created, notifying to scheduler: %s", item)
 
-	rawResp, err := no.Request(method, url, headers, nil)
+	rawResp, err := c.Request(method, url, headers, nil)
 	if err != nil {
-		no.Logger.Debugf("error requesting url: %s", url)
+		c.Logger.Debugf("error requesting url: %s", url)
 		return err
 	}
 	defer rawResp.Body.Close()
@@ -307,34 +342,34 @@ func (no *Client) CreateItem(item string) error {
 	body, _ := ioutil.ReadAll(rawResp.Body)
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		no.Logger.Debugln("error decoding payload:", err)
+		c.Logger.Debugln("error decoding payload:", err)
 		return err
 	}
 
 	if resp.Status != "success" {
-		no.Logger.Debugf("error received from scheduler: %s", resp.Message)
+		c.Logger.Debugf("error received from scheduler: %s", resp.Message)
 		return err
 	}
 	return nil
 }
 
 // Ask the scheduler to find a node to download the item
-func (no *Client) GetPeers(item string) (*node.NodeSchema, error) {
+func (c *Client) GetPeers(item string) (*node.NodeSchema, error) {
 
 	var resp Response
-	no.Logger.Debugf("scheduling dowload for item %s", item)
+	c.Logger.Debugf("scheduling dowload for item %s", item)
 
 	method := "GET"
 	resource := "peers"
 
-	url := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, resource, item)
+	url := fmt.Sprintf("%s/%s/%s/%s", c.SchedulerAddress, apiVersion, resource, item)
 	headers := map[string]string{
 		"Content-Type": "application/json",
 	}
 
-	rawResp, err := no.Request(method, url, headers, nil)
+	rawResp, err := c.Request(method, url, headers, nil)
 	if err != nil {
-		no.Logger.Debugf("error requesting url: %s", url)
+		c.Logger.Debugf("error requesting url: %s", url)
 		return nil, err
 	}
 	defer rawResp.Body.Close()
@@ -342,12 +377,12 @@ func (no *Client) GetPeers(item string) (*node.NodeSchema, error) {
 	body, _ := ioutil.ReadAll(rawResp.Body)
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		no.Logger.Debugln("error decoding payload:", err)
+		c.Logger.Debugln("error decoding payload:", err)
 		return nil, err
 	}
 
 	if rawResp.StatusCode != 200 {
-		no.Logger.Debugf("scheduler response is not 200: %s", resp.Message)
+		c.Logger.Debugf("scheduler response is not 200: %s", resp.Message)
 		return nil, fmt.Errorf("scheduler response is not 200")
 	}
 
@@ -355,11 +390,11 @@ func (no *Client) GetPeers(item string) (*node.NodeSchema, error) {
 		return nil, fmt.Errorf("node not found")
 	}
 
-	no.Logger.Debugf("node data retrieved %+v", resp.Node)
+	c.Logger.Debugf("node data retrieved %+v", resp.Node)
 
 	return resp.Node, nil
 }
 
-func (no *Client) GetHttpClient() *http.Client {
-	return no.HTTPClient
+func (c *Client) GetHttpClient() *http.Client {
+	return c.HTTPClient
 }

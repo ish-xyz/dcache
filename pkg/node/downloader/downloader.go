@@ -22,7 +22,7 @@ type KillSwitch struct {
 }
 
 type Downloader struct {
-	Queue  chan *Item    `validate:"required"`
+	Stack  chan *Item    `validate:"required"`
 	Client *http.Client  `validate:"required"`
 	Logger *logrus.Entry `validate:"required"`
 	GC     *GC           `validate:"required"`
@@ -53,7 +53,7 @@ func NewDownloader(log *logrus.Entry, dataDir string, maxAtime, interval time.Du
 	}
 
 	return &Downloader{
-		Queue:  make(chan *Item, 100),
+		Stack:  make(chan *Item, 100),
 		Logger: log,
 		Client: &http.Client{},
 		GC:     gc,
@@ -67,7 +67,7 @@ func (d *Downloader) Push(req *http.Request, filepath string) error {
 		FilePath: filepath,
 	}
 	select {
-	case d.Queue <- it:
+	case d.Stack <- it:
 		return nil
 	default:
 		return fmt.Errorf("buffer is full")
@@ -76,11 +76,11 @@ func (d *Downloader) Push(req *http.Request, filepath string) error {
 
 func (d *Downloader) Pop(wait bool) (*Item, error) {
 	if wait {
-		return <-d.Queue, nil
+		return <-d.Stack, nil
 	}
 
 	select {
-	case it := <-d.Queue:
+	case it := <-d.Stack:
 		return it, nil
 	default:
 		return nil, fmt.Errorf("empty queue")

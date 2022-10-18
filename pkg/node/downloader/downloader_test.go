@@ -33,7 +33,7 @@ func TestPushOK(t *testing.T) {
 	d.Push(myReq, "/tmp/mydatadir/myitem")
 	it, err := d.Pop(false)
 
-	assert.Equal(t, len(d.Queue), 0)
+	assert.Equal(t, len(d.Stack), 0)
 	assert.Nil(t, err)
 	assert.Equal(t, it.FilePath, "/tmp/mydatadir/myitem")
 	assert.Equal(t, it.Req, myReq)
@@ -53,7 +53,7 @@ func TestQueueEmpty(t *testing.T) {
 
 	it, err := d.Pop(false)
 
-	assert.Equal(t, len(d.Queue), 0)
+	assert.Equal(t, len(d.Stack), 0)
 	assert.NotNil(t, err)
 	assert.Nil(t, it)
 }
@@ -142,7 +142,7 @@ func TestRunDownloadKillSwitch(t *testing.T) {
 	d.Run()
 
 	assert.Nil(t, myreqErr)
-	assert.Equal(t, 1, len(d.Queue))
+	assert.Equal(t, 1, len(d.Stack))
 
 	os.Remove("/tmp/test-data-download")
 }
