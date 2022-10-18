@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/ish-xyz/dcache/pkg/node"
+	"github.com/ish-xyz/dcache/pkg/node/notifier"
 	"github.com/sirupsen/logrus"
 )
 
@@ -32,10 +33,11 @@ type Response struct {
 }
 
 type Client struct {
-	Name             string        `validate:"required,alphanum"`
-	SchedulerAddress string        `validate:"required,url"`
-	HTTPClient       *http.Client  `validate:"required"`
-	Logger           *logrus.Entry `validate:"required"`
+	Name             string             `validate:"required,alphanum"`
+	Notifier         notifier.INotifier `validate:"required"`
+	SchedulerAddress string             `validate:"required,url"`
+	HTTPClient       *http.Client       `validate:"required"`
+	Logger           *logrus.Entry      `validate:"required"`
 }
 
 type IClient interface {
@@ -56,12 +58,14 @@ type IClient interface {
 
 func NewClient(
 	name string,
+	nt notifier.INotifier,
 	scheduler string,
 	lg *logrus.Entry,
 ) *Client {
 
 	return &Client{
 		Name:             name,
+		Notifier:         nt,
 		SchedulerAddress: scheduler,
 		HTTPClient:       &http.Client{},
 		Logger:           lg,
@@ -252,42 +256,23 @@ func (c *Client) GetNode(name string) (*node.NodeSchema, error) {
 	return resp.Node, nil
 }
 
-/*
-TODO:
+// Infinite loop that waits for events and notifies the scheduler
 func (c *Client) NotifyItems() {
+	ch := make(chan *notifier.Event, 10)
+	c.Notifier.Subscribe(ch)
 
-		create channel
-		pass channel to notifier
-		wait for channel events
-
-		for {
-
-				lastItem, _ := <- c.EventsChan
-				d.Logger.Infof("downloading %s in %s", lastItem.Req.URL.String(), lastItem.FilePath)
-
-				err := d.download(lastItem)
-				if err != nil {
-					d.Logger.Errorf("failed to download item %s with error: %v", lastItem.FilePath, err)
-					if _, statErr := os.Stat(lastItem.FilePath); statErr == nil {
-						d.Logger.Infof("removing file %s", lastItem.FilePath)
-						err = os.Remove(lastItem.FilePath)
-						if err != nil {
-							d.Logger.Errorf("failed to delete corrupt file %s with error %v", lastItem.FilePath, err)
-						}
-					}
-					//TODO: should notify scheduler that the peer didn't serve the file properly
-				}
-			}
-
-			if d.DryRun {
-				d.Logger.Infoln("dry run for testing purposes")
-				return
-			}
+	for {
+		event := <-ch
+		if event.Op == Create {
+			c.Logger.Debugln("sending CREATE request for item", event.Item)
+			c.CreateItem(event.Item)
+		}
+		if event.Op == Remove {
+			c.Logger.Debugln("sending DELETE request for item", event.Item)
+			c.DeleteItem(event.Item)
 		}
 	}
-
 }
-*/
 
 func (c *Client) DeleteItem(item string) error {
 

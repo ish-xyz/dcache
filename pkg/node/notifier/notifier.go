@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/ish-xyz/dcache/pkg/node/client"
 	"github.com/sirupsen/logrus"
 )
 
@@ -16,19 +15,24 @@ type Event struct {
 
 type Notifier struct {
 	mu            sync.Mutex
-	NodeClient    client.IClient
 	DataDir       string
 	Logger        *logrus.Entry
 	Subscriptions []chan *Event
 	DryRun        bool
 }
 
-func NewNotifier(nc client.IClient, dataDir string, log *logrus.Entry) *Notifier {
+type INotifier interface {
+	Subscribe(ev chan *Event)
+	Run() error
+}
+
+func NewNotifier(dataDir string, log *logrus.Entry) *Notifier {
+
 	return &Notifier{
-		NodeClient: nc,
-		DataDir:    dataDir,
-		Logger:     log,
-		DryRun:     false,
+		DataDir:       dataDir,
+		Logger:        log,
+		Subscriptions: make([]chan *Event, 0),
+		DryRun:        false,
 	}
 }
 
@@ -38,7 +42,7 @@ func (nt *Notifier) Subscribe(ev chan *Event) {
 	nt.mu.Unlock()
 }
 
-func (nt *Notifier) Watch() error {
+func (nt *Notifier) Run() error {
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -57,8 +61,6 @@ func (nt *Notifier) Watch() error {
 				}
 
 				item := filepath.Base(event.Name)
-				var err error
-
 				ntEvent := &Event{
 					Item: item,
 					Op:   int(event.Op),
@@ -72,21 +74,6 @@ func (nt *Notifier) Watch() error {
 						nt.Logger.Errorf("failed to send event %+v to %+v", ntEvent, ch)
 					}
 				}
-
-				// TODO: move to subscription model
-				if event.Op == 1 {
-					nt.Logger.Infof("CREATE event received for %s", item)
-					err = nt.NodeClient.CreateItem(item)
-
-				} else if event.Op == 4 {
-					nt.Logger.Infof("REMOVE event received for %s", item)
-					err = nt.NodeClient.DeleteItem(item)
-				}
-
-				if err != nil {
-					nt.Logger.Errorf("failed to notify (%s) item %s to scheduler", item, event.Op.String())
-				}
-
 			case err, ok := <-watcher.Errors:
 				if !ok {
 					return

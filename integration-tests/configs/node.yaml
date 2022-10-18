@@ -3,7 +3,7 @@ node:
   port: 8100
   dataDir: /var/dcache/data
   upstream:
-    address: http://212.183.159.230
+    address: http://speedtest.tele2.net
     insecure: true
   proxy:
     regex: ".*zip$"

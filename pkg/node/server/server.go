@@ -119,24 +119,26 @@ func (no *Node) ProxyRequestHandler(upstreamProxy, peerProxy *httputil.ReversePr
 			// File not found in local cache, try to find a suitable peer
 			peerinfo, err := no.Client.GetPeers(item)
 			if err != nil {
+				downloaderReq, _ := copyRequest(context.TODO(), r, url, host, http.MethodGet)
+				err = no.Downloader.Push(downloaderReq, filepath)
+				if err != nil {
+					no.Logger.Errorf("failed to push file %s into downloader queue", filepath)
+				}
 				no.Logger.Errorln("error looking for peer:", err)
 				no.runProxy(upstreamProxy, w, r)
-			} else {
-				rewriteToPeer(r, peerinfo)
-				url = fmt.Sprintf("%s://%s:%d/%s", peerinfo.Scheme, peerinfo.IPv4, peerinfo.Port, r.URL.Path)
-				host = fmt.Sprintf("%s:%d", peerinfo.IPv4, peerinfo.Port)
-				no.runProxy(peerProxy, w, r)
+				return
 			}
 
-			no.Logger.Debugln("heating cache from:", url)
-			// NOTE: we can't pass r.Context() to copyRequest because the download
-			// will  most likely be processed after the request has been served and the contex wil get canceled
-			// Remove this comment when a test has been implemented
+			rewriteToPeer(r, peerinfo)
+			url = fmt.Sprintf("%s://%s:%d/%s", peerinfo.Scheme, peerinfo.IPv4, peerinfo.Port, r.URL.Path)
+			host = fmt.Sprintf("%s:%d", peerinfo.IPv4, peerinfo.Port)
 			downloaderReq, _ := copyRequest(context.TODO(), r, url, host, http.MethodGet)
+
 			err = no.Downloader.Push(downloaderReq, filepath)
 			if err != nil {
 				no.Logger.Errorf("failed to push file %s into downloader queue", filepath)
 			}
+			no.runProxy(peerProxy, w, r)
 			return
 		}
 		no.runProxy(upstreamProxy, w, r)

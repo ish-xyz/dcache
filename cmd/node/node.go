@@ -140,7 +140,6 @@ func exec(cmd *cobra.Command, args []string) {
 		os.Exit(102)
 	}
 
-	nc := client.NewClient(name, schedulerAddress, logger.WithField("component", "node.client"))
 	dw := downloader.NewDownloader(
 		logger.WithField("component", "node.downloader"),
 		dataDir,
@@ -148,11 +147,8 @@ func exec(cmd *cobra.Command, args []string) {
 		gcInterval,
 		gcMaxDiskUsage,
 	)
-	nt := notifier.NewNotifier(
-		nc,
-		dataDir,
-		logger.WithField("component", "node.notifier"),
-	)
+	nt := notifier.NewNotifier(dataDir, logger.WithField("component", "node.notifier"))
+	nc := client.NewClient(name, nt, schedulerAddress, logger.WithField("component", "node.client"))
 	srv := server.NewNode(
 		nc,
 		&server.UpstreamConfig{
@@ -181,7 +177,8 @@ func exec(cmd *cobra.Command, args []string) {
 
 	logrus.Infoln("starting routines...")
 	go dw.Run()
-	go nt.Watch()
-	go dw.GC.Run()
+	go nt.Run()         // start filesystem watcher that creates sends events to subscribers
+	go nc.NotifyItems() // Waits for events and notifies items to scheduler
+	go dw.GC.Run()      // Background routine that deletes unused files
 	srv.Run()
 }
