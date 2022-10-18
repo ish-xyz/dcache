@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/ish-xyz/dcache/cmd/utils"
-	"github.com/ish-xyz/dcache/pkg/node"
+	"github.com/ish-xyz/dcache/pkg/node/client"
 	"github.com/ish-xyz/dcache/pkg/node/downloader"
 	"github.com/ish-xyz/dcache/pkg/node/notifier"
 	"github.com/ish-xyz/dcache/pkg/node/server"
@@ -89,10 +89,10 @@ func argumentsMapping() {
 
 }
 
-func registerNode(client *node.Client) {
+func registerNode(c *client.Client) {
 	logrus.Info("registering node... (will retry until completed)")
-	for !node.Registered {
-		client.Register(ipv4, scheme, port, maxConnections)
+	for !client.Registered {
+		c.CreateNode(ipv4, scheme, port, maxConnections)
 		time.Sleep(time.Duration(2) * time.Second)
 	}
 	logrus.Info("registration completed.")
@@ -140,7 +140,7 @@ func exec(cmd *cobra.Command, args []string) {
 		os.Exit(102)
 	}
 
-	nodeClient := node.NewClient(name, schedulerAddress, logger.WithField("component", "node.client"))
+	nc := client.NewClient(name, schedulerAddress, logger.WithField("component", "node.client"))
 	dw := downloader.NewDownloader(
 		logger.WithField("component", "node.downloader"),
 		dataDir,
@@ -149,12 +149,12 @@ func exec(cmd *cobra.Command, args []string) {
 		gcMaxDiskUsage,
 	)
 	nt := notifier.NewNotifier(
-		nodeClient,
+		nc,
 		dataDir,
 		logger.WithField("component", "node.notifier"),
 	)
 	srv := server.NewNode(
-		nodeClient,
+		nc,
 		&server.UpstreamConfig{
 			Address:  upstream,
 			Insecure: insecure,
@@ -169,7 +169,7 @@ func exec(cmd *cobra.Command, args []string) {
 		logger.WithField("component", "node.server"),
 	)
 
-	err = utils.Validate(nodeClient, srv, nt, dw)
+	err = utils.Validate(nc, srv, nt, dw)
 	if err != nil {
 		logrus.Errorf("Error while validating user inputs or configuration file")
 		logrus.Debugln(err)
@@ -177,7 +177,7 @@ func exec(cmd *cobra.Command, args []string) {
 	}
 
 	// Execution
-	registerNode(nodeClient)
+	registerNode(nc)
 
 	logrus.Infoln("starting routines...")
 	go dw.Run()

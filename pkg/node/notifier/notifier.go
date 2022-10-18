@@ -2,26 +2,40 @@ package notifier
 
 import (
 	"path/filepath"
+	"sync"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/ish-xyz/dcache/pkg/node"
+	"github.com/ish-xyz/dcache/pkg/node/client"
 	"github.com/sirupsen/logrus"
 )
 
-type Notifier struct {
-	NodeClient node.NodeClient
-	DataDir    string
-	Logger     *logrus.Entry
-	DryRun     bool
+type Event struct {
+	Item string
+	Op   int
 }
 
-func NewNotifier(nc node.NodeClient, dataDir string, log *logrus.Entry) *Notifier {
+type Notifier struct {
+	mu            sync.Mutex
+	NodeClient    client.IClient
+	DataDir       string
+	Logger        *logrus.Entry
+	Subscriptions []chan *Event
+	DryRun        bool
+}
+
+func NewNotifier(nc client.IClient, dataDir string, log *logrus.Entry) *Notifier {
 	return &Notifier{
 		NodeClient: nc,
 		DataDir:    dataDir,
 		Logger:     log,
 		DryRun:     false,
 	}
+}
+
+func (nt *Notifier) Subscribe(ev chan *Event) {
+	nt.mu.Lock()
+	nt.Subscriptions = append(nt.Subscriptions, ev)
+	nt.mu.Unlock()
 }
 
 func (nt *Notifier) Watch() error {
@@ -45,13 +59,28 @@ func (nt *Notifier) Watch() error {
 				item := filepath.Base(event.Name)
 				var err error
 
+				ntEvent := &Event{
+					Item: item,
+					Op:   int(event.Op),
+				}
+
+				for _, ch := range nt.Subscriptions {
+					select {
+					case ch <- ntEvent:
+						nt.Logger.Debugf("successfully sent event %+v to %+v", ntEvent, ch)
+					default:
+						nt.Logger.Errorf("failed to send event %+v to %+v", ntEvent, ch)
+					}
+				}
+
+				// TODO: move to subscription model
 				if event.Op == 1 {
 					nt.Logger.Infof("CREATE event received for %s", item)
-					err = nt.NodeClient.NotifyItem(item, int(event.Op))
+					err = nt.NodeClient.CreateItem(item)
 
 				} else if event.Op == 4 {
 					nt.Logger.Infof("REMOVE event received for %s", item)
-					err = nt.NodeClient.NotifyItem(item, int(event.Op))
+					err = nt.NodeClient.DeleteItem(item)
 				}
 
 				if err != nil {

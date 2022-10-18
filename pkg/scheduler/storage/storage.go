@@ -8,8 +8,8 @@ import (
 
 // Write() -> location,
 type Storage interface {
-	WriteNode(node *node.NodeInfo, force bool) error
-	ReadNode(nodeName string) (*node.NodeInfo, error)
+	WriteNode(node *node.NodeSchema, force bool) error
+	ReadNode(nodeName string) (*node.NodeSchema, error)
 	WriteIndex(hash string, nodeName string, ops int) error
 	ReadIndex(hash string) (map[string]int, error)
 }
@@ -25,7 +25,7 @@ func NewStorage(storageType string, opts map[string]string) (Storage, error) {
 
 		return &MemoryStorage{
 			Index: indexStore,
-			Nodes: map[string]*node.NodeInfo{},
+			Nodes: map[string]*node.NodeSchema{},
 		}, nil
 	}
 

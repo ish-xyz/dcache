@@ -44,7 +44,7 @@ func newCustomProxy(target *url.URL, prefix string) *httputil.ReverseProxy {
 }
 
 // Helper function to set the peer as server
-func rewriteToPeer(r *http.Request, target *node.NodeInfo) {
+func rewriteToPeer(r *http.Request, target *node.NodeSchema) {
 
 	r.Host = fmt.Sprintf("%s:%d", target.IPv4, target.Port)
 	r.RequestURI = ""

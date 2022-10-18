@@ -1,4 +1,4 @@
-package node
+package client
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/ish-xyz/dcache/pkg/node"
 	"github.com/sirupsen/logrus"
 )
 
@@ -25,9 +26,9 @@ var (
 )
 
 type Response struct {
-	Status   string    `json:"status"`
-	Message  string    `json:"message"`
-	NodeInfo *NodeInfo `json:"nodeInfo,omitempty"`
+	Status  string           `json:"status"`
+	Message string           `json:"message"`
+	Node    *node.NodeSchema `json:"node,omitempty"`
 }
 
 type Client struct {
@@ -37,23 +38,19 @@ type Client struct {
 	Logger           *logrus.Entry `validate:"required"`
 }
 
-type NodeInfo struct {
-	Name           string `json:"name" validate:"required,alphanum"`
-	IPv4           string `json:"ipv4" validate:"required,ip"`
-	Connections    int    `json:"connections"`
-	MaxConnections int    `json:"maxConnections" validate:"required,number"`
-	Port           int    `json:"port" validate:"required"`
-	Scheme         string `json:"scheme" validate:"required"`
-}
+type IClient interface {
+	CreateNode(ipv4, scheme string, port, maxconn int) error
+	GetNode(name string) (*node.NodeSchema, error)
 
-type NodeClient interface {
-	Request(method string, resource string, headers map[string]string, body []byte) (*http.Response, error)
-	Register(ipv4, scheme string, port, maxconn int) error
 	AddConnection() error
 	RemoveConnection() error
-	Info() (*NodeInfo, error)
-	NotifyItem(item string, ops int) error
-	Schedule(item string) (*NodeInfo, error)
+
+	CreateItem(item string) error
+	DeleteItem(item string) error
+
+	GetPeers(item string) (*node.NodeSchema, error)
+
+	// TODO: remove from interface, it's quite useless
 	GetHttpClient() *http.Client
 }
 
@@ -84,12 +81,16 @@ func (no *Client) Request(method string, resource string, headers map[string]str
 	return no.HTTPClient.Do(req)
 }
 
-func (no *Client) Register(ipv4, scheme string, port, maxconn int) error {
+func (no *Client) CreateNode(ipv4, scheme string, port, maxconn int) error {
 
 	var resp Response
 
-	resource := fmt.Sprintf("%s/%s/%s", no.SchedulerAddress, apiVersion, "registerNode")
-	nodeInfo := &NodeInfo{
+	method := "POST"
+	resource := "nodes"
+	headers := map[string]string{"Content-Type": "application/json"}
+
+	url := fmt.Sprintf("%s/%s/%s", no.SchedulerAddress, apiVersion, resource)
+	node := &node.NodeSchema{
 		Name:           no.Name,
 		IPv4:           ipv4,
 		Port:           port,
@@ -97,19 +98,17 @@ func (no *Client) Register(ipv4, scheme string, port, maxconn int) error {
 		Connections:    0,
 		MaxConnections: maxconn,
 	}
-	payload, err := json.Marshal(nodeInfo)
+	payload, err := json.Marshal(node)
 	if err != nil {
 		return err
 	}
 
-	no.Logger.Debugln("registering node to: ", resource)
+	no.Logger.Debugln("calling url: ", url)
 	no.Logger.Debugf("sending data %s", string(payload))
 
-	headers := map[string]string{"Content-Type": "application/json"}
-
-	rawResp, err := no.Request("POST", resource, headers, payload)
+	rawResp, err := no.Request(method, url, headers, payload)
 	if err != nil {
-		no.Logger.Debugf("error requesting resource: %s", resource)
+		no.Logger.Debugf("error requesting url: %s", url)
 		return err
 	}
 	defer rawResp.Body.Close()
@@ -135,17 +134,17 @@ func (no *Client) AddConnection() error {
 
 	var resp Response
 
-	resource := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "addNodeConnection", no.Name)
+	method := "POST"
+	resource := "connections"
+	headers := map[string]string{"Content-Type": "application/json"}
+
+	url := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, resource, no.Name)
 
 	no.Logger.Debugln("adding 1 connection")
 
-	headers := map[string]string{
-		"Content-Type": "application/json",
-	}
-
-	rawResp, err := no.Request("PUT", resource, headers, nil)
+	rawResp, err := no.Request(method, url, headers, nil)
 	if err != nil {
-		no.Logger.Debugf("error requesting resource: %s", resource)
+		no.Logger.Debugf("error requesting url: %s", url)
 		return err
 	}
 	defer rawResp.Body.Close()
@@ -171,7 +170,10 @@ func (no *Client) RemoveConnection() error {
 
 	var resp Response
 
-	resource := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "removeNodeConnection", no.Name)
+	method := "DELETE"
+	resource := "connections"
+
+	url := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, resource, no.Name)
 
 	no.Logger.Debugln("removing 1 connection")
 
@@ -179,9 +181,9 @@ func (no *Client) RemoveConnection() error {
 		"Content-Type": "application/json",
 	}
 
-	rawResp, err := no.Request("DELETE", resource, headers, nil)
+	rawResp, err := no.Request(method, url, headers, nil)
 	if err != nil {
-		no.Logger.Debugf("error requesting resource: %s", resource)
+		no.Logger.Debugf("error requesting url: %s", url)
 		return err
 	}
 	defer rawResp.Body.Close()
@@ -203,11 +205,18 @@ func (no *Client) RemoveConnection() error {
 }
 
 // returns a map[string]interface{} with the node stat from the scheduler storage
-func (no *Client) Info() (*NodeInfo, error) {
+func (no *Client) GetNode(name string) (*node.NodeSchema, error) {
 
 	var resp Response
 
-	resource := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "getNode", no.Name)
+	method := "GET"
+	resource := "nodes"
+
+	if name == "self" {
+		name = no.Name
+	}
+
+	url := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, resource, name)
 
 	no.Logger.Debugln("getting node information")
 
@@ -215,9 +224,9 @@ func (no *Client) Info() (*NodeInfo, error) {
 		"Content-Type": "application/json",
 	}
 
-	rawResp, err := no.Request("GET", resource, headers, nil)
+	rawResp, err := no.Request(method, url, headers, nil)
 	if err != nil {
-		no.Logger.Debugf("error requesting resource: %s", resource)
+		no.Logger.Debugf("error requesting url: %s", url)
 		return nil, err
 	}
 	defer rawResp.Body.Close()
@@ -234,40 +243,31 @@ func (no *Client) Info() (*NodeInfo, error) {
 		return nil, err
 	}
 
-	if resp.NodeInfo == nil {
+	if resp.Node == nil {
 		return nil, fmt.Errorf("node not found")
 	}
 
-	no.Logger.Debugf("node data retrieved %+v", resp.NodeInfo)
+	no.Logger.Debugf("node data retrieved %+v", resp.Node)
 
-	return resp.NodeInfo, nil
+	return resp.Node, nil
 }
 
-// Notify scheduler that the current node has an item
-func (no *Client) NotifyItem(item string, ops int) error {
+func (no *Client) RunNotifierSubscriber() {}
+
+func (no *Client) DeleteItem(item string) error {
 
 	var resp Response
-	var resource string
-	var method string
+	resource := "items"
+	method := "DELETE"
+	headers := map[string]string{"Content-Type": "application/json"}
 
-	no.Logger.Debugf("notifying to scheduler: ops -> %d, item -> %s", ops, item)
-	if ops == Create {
-		resource = fmt.Sprintf("%s/%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "addNodeForItem", item, no.Name)
-		method = "PUT"
-	} else if ops == Remove {
-		resource = fmt.Sprintf("%s/%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "removeNodeForItem", item, no.Name)
-		method = "DELETE"
-	} else {
-		return fmt.Errorf("NotifyItem: unknown operation")
-	}
+	url := fmt.Sprintf("%s/%s/%s/%s/%s", no.SchedulerAddress, apiVersion, resource, item, no.Name)
 
-	headers := map[string]string{
-		"Content-Type": "application/json",
-	}
+	no.Logger.Debugf("item created, notifying to scheduler: %s", item)
 
-	rawResp, err := no.Request(method, resource, headers, nil)
+	rawResp, err := no.Request(method, url, headers, nil)
 	if err != nil {
-		no.Logger.Debugf("error requesting resource: %s", resource)
+		no.Logger.Debugf("error requesting url: %s", url)
 		return err
 	}
 	defer rawResp.Body.Close()
@@ -283,24 +283,58 @@ func (no *Client) NotifyItem(item string, ops int) error {
 		no.Logger.Debugf("error received from scheduler: %s", resp.Message)
 		return err
 	}
+	return nil
+}
 
+func (no *Client) CreateItem(item string) error {
+
+	var resp Response
+	resource := "items"
+	method := "POST"
+	headers := map[string]string{"Content-Type": "application/json"}
+
+	url := fmt.Sprintf("%s/%s/%s/%s/%s", no.SchedulerAddress, apiVersion, resource, item, no.Name)
+
+	no.Logger.Debugf("item created, notifying to scheduler: %s", item)
+
+	rawResp, err := no.Request(method, url, headers, nil)
+	if err != nil {
+		no.Logger.Debugf("error requesting url: %s", url)
+		return err
+	}
+	defer rawResp.Body.Close()
+
+	body, _ := ioutil.ReadAll(rawResp.Body)
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		no.Logger.Debugln("error decoding payload:", err)
+		return err
+	}
+
+	if resp.Status != "success" {
+		no.Logger.Debugf("error received from scheduler: %s", resp.Message)
+		return err
+	}
 	return nil
 }
 
 // Ask the scheduler to find a node to download the item
-func (no *Client) Schedule(item string) (*NodeInfo, error) {
+func (no *Client) GetPeers(item string) (*node.NodeSchema, error) {
 
 	var resp Response
 	no.Logger.Debugf("scheduling dowload for item %s", item)
 
-	resource := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, "schedule", item)
+	method := "GET"
+	resource := "peers"
+
+	url := fmt.Sprintf("%s/%s/%s/%s", no.SchedulerAddress, apiVersion, resource, item)
 	headers := map[string]string{
 		"Content-Type": "application/json",
 	}
 
-	rawResp, err := no.Request("GET", resource, headers, nil)
+	rawResp, err := no.Request(method, url, headers, nil)
 	if err != nil {
-		no.Logger.Debugf("error requesting resource: %s", resource)
+		no.Logger.Debugf("error requesting url: %s", url)
 		return nil, err
 	}
 	defer rawResp.Body.Close()
@@ -317,13 +351,13 @@ func (no *Client) Schedule(item string) (*NodeInfo, error) {
 		return nil, fmt.Errorf("scheduler response is not 200")
 	}
 
-	if resp.NodeInfo == nil {
+	if resp.Node == nil {
 		return nil, fmt.Errorf("node not found")
 	}
 
-	no.Logger.Debugf("node data retrieved %+v", resp.NodeInfo)
+	no.Logger.Debugf("node data retrieved %+v", resp.Node)
 
-	return resp.NodeInfo, nil
+	return resp.Node, nil
 }
 
 func (no *Client) GetHttpClient() *http.Client {

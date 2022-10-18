@@ -16,10 +16,10 @@ const (
 type MemoryStorage struct {
 	mu    sync.Mutex
 	Index map[string]map[string]int
-	Nodes map[string]*node.NodeInfo
+	Nodes map[string]*node.NodeSchema
 }
 
-func (store *MemoryStorage) WriteNode(node *node.NodeInfo, force bool) error {
+func (store *MemoryStorage) WriteNode(node *node.NodeSchema, force bool) error {
 
 	store.mu.Lock()
 	defer store.mu.Unlock()
@@ -32,7 +32,7 @@ func (store *MemoryStorage) WriteNode(node *node.NodeInfo, force bool) error {
 	return nil
 }
 
-func (store *MemoryStorage) ReadNode(nodeName string) (*node.NodeInfo, error) {
+func (store *MemoryStorage) ReadNode(nodeName string) (*node.NodeSchema, error) {
 
 	store.mu.Lock()
 	defer store.mu.Unlock()

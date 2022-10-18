@@ -22,9 +22,9 @@ type Server struct {
 }
 
 type Response struct {
-	Status   string         `json:"status"`
-	Message  string         `json:"message,omitempty"`
-	NodeInfo *node.NodeInfo `json:"nodeInfo,omitempty"`
+	Status  string           `json:"status"`
+	Message string           `json:"message,omitempty"`
+	Node    *node.NodeSchema `json:"node,omitempty"`
 }
 
 func NewServer(addr string, sch *Scheduler) *Server {
@@ -39,14 +39,22 @@ func (s *Server) Run() {
 
 	r := mux.NewRouter()
 	r.NotFoundHandler = http.HandlerFunc(notFound)
-	r.HandleFunc("/v1/registerNode", s.registerNode).Methods("POST")
-	r.HandleFunc("/v1/getNode/{nodeName}", s.getNode).Methods("GET")
-	r.HandleFunc("/v1/addNodeConnection/{nodeName}", s.addNodeConnection).Methods("PUT")
-	r.HandleFunc("/v1/removeNodeConnection/{nodeName}", s.removeNodeConnection).Methods("DELETE")
-	r.HandleFunc("/v1/setNodeConnections/{nodeName}/{conns}", s.setNodeConnections).Methods("PUT")
-	r.HandleFunc("/v1/removeNodeForItem{item}/{nodeName}", s.removeNodeForItem).Methods("DELETE")
-	r.HandleFunc("/v1/addNodeForItem/{item}/{nodeName}", s.addNodeForItem).Methods("PUT")
-	r.HandleFunc("/v1/schedule/{item}", s.schedule).Methods("GET")
+
+	// Connections handlers
+	r.HandleFunc("/v1/connections/{nodeName}", s.addNodeConnection).Methods("POST")
+	r.HandleFunc("/v1/connections/{nodeName}", s.removeNodeConnection).Methods("DELETE")
+	r.HandleFunc("/v1/connections/{nodeName}/{conns}", s.setNodeConnections).Methods("PUT")
+
+	// Nodes handlers (TODO: finish missing APIs)
+	r.HandleFunc("/v1/nodes", s.createNode).Methods("POST")
+	//r.HandleFunc("/v1/nodes/{nodeName}", s.deleteNode).Methods("DELETE")
+	//r.HandleFunc("/v1/nodes/{nodeName}", s.updateNode).Methods("PUT")
+	r.HandleFunc("/v1/nodes/{nodeName}", s.getNode).Methods("GET")
+
+	r.HandleFunc("/v1/items/{item}/{nodeName}", s.removeNodeForItem).Methods("DELETE")
+	r.HandleFunc("/v1/items/{item}/{nodeName}", s.addNodeForItem).Methods("POST")
+
+	r.HandleFunc("/v1/peers/{item}", s.getPeers).Methods("GET")
 
 	logrus.Infof("starting up server on %s", s.Address)
 	http.Handle("/", logsMiddleware(r))
@@ -89,24 +97,24 @@ func notFound(w http.ResponseWriter, r *http.Request) {
 	jsonApiResponse(w, r, 404, resp)
 }
 
-func (s *Server) registerNode(w http.ResponseWriter, r *http.Request) {
+func (s *Server) createNode(w http.ResponseWriter, r *http.Request) {
 
 	var resp Response
-	var _node node.NodeInfo
+	var _node node.NodeSchema
 	body, _ := ioutil.ReadAll(r.Body)
 
 	err := json.Unmarshal(body, &_node)
 	if err != nil {
-		logrus.Warnln("_registerNode:", err.Error())
+		logrus.Warnln("createNode:", err.Error())
 		resp.Status = "error"
 		resp.Message = err.Error()
 		jsonApiResponse(w, r, 400, resp)
 		return
 	}
 
-	err = s.Scheduler.registerNode(&_node)
+	err = s.Scheduler.createNode(&_node)
 	if err != nil {
-		logrus.Warnln("_registerNode:", err.Error())
+		logrus.Warnln("createNode:", err.Error())
 		resp.Status = "error"
 		resp.Message = err.Error()
 		logrus.Warnf("registration failed for node %s", string(body))
@@ -137,7 +145,7 @@ func (s *Server) getNode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp.Status = "success"
-	resp.NodeInfo = node
+	resp.Node = node
 
 	jsonApiResponse(w, r, 200, resp)
 }
@@ -256,13 +264,13 @@ func (s *Server) removeNodeForItem(w http.ResponseWriter, r *http.Request) {
 	jsonApiResponse(w, r, 200, resp)
 }
 
-func (s *Server) schedule(w http.ResponseWriter, r *http.Request) {
+func (s *Server) getPeers(w http.ResponseWriter, r *http.Request) {
 
 	var resp Response
 	vars := mux.Vars(r)
 	item := vars["item"]
 
-	node, err := s.Scheduler.schedule(item)
+	node, err := s.Scheduler.getPeers(item)
 	if err != nil {
 		logrus.Warnln("_schedule:", err.Error())
 		resp.Status = "error"
@@ -274,8 +282,8 @@ func (s *Server) schedule(w http.ResponseWriter, r *http.Request) {
 	// Prepare response
 	code := 200
 	resp.Status = "success"
-	resp.NodeInfo = node
-	if resp.NodeInfo == nil {
+	resp.Node = node
+	if resp.Node == nil {
 		code = 404
 	}
 

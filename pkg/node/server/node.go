@@ -12,7 +12,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/ish-xyz/dcache/pkg/node"
+	"github.com/ish-xyz/dcache/pkg/node/client"
 	"github.com/ish-xyz/dcache/pkg/node/downloader"
 	"github.com/sirupsen/logrus"
 )
@@ -23,7 +23,7 @@ type UpstreamConfig struct {
 }
 
 type Node struct {
-	Client         node.NodeClient        `validate:"required"`
+	Client         client.IClient         `validate:"required"`
 	Upstream       *UpstreamConfig        `validate:"required,dive"`
 	DataDir        string                 `validate:"required"` // Add dir validator
 	Scheme         string                 `validate:"required"`
@@ -37,7 +37,7 @@ type Node struct {
 
 // TODO this can probably be improved, struct is too big and the args on this function are too much
 func NewNode(
-	nc node.NodeClient,
+	nc client.IClient,
 	uconf *UpstreamConfig,
 	dataDir,
 	scheme,
@@ -98,7 +98,7 @@ func (no *Node) ProxyRequestHandler(upstreamProxy, peerProxy *httputil.ReversePr
 
 			filepath := fmt.Sprintf("%s/%s", no.DataDir, item)
 			if _, err := os.Stat(filepath); err == nil {
-				selfInfo, err := no.Client.Info()
+				selfInfo, err := no.Client.GetNode("self")
 				if err != nil {
 					no.Logger.Errorln("failed to contact scheduler to get node info, fallingback to upstream")
 					no.runProxy(upstreamProxy, w, r)
@@ -117,7 +117,7 @@ func (no *Node) ProxyRequestHandler(upstreamProxy, peerProxy *httputil.ReversePr
 			}
 
 			// File not found in local cache, try to find a suitable peer
-			peerinfo, err := no.Client.Schedule(item)
+			peerinfo, err := no.Client.GetPeers(item)
 			if err != nil {
 				no.Logger.Errorln("error looking for peer:", err)
 				no.runProxy(upstreamProxy, w, r)

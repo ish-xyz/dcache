@@ -60,7 +60,7 @@ func (sch *Scheduler) setNodeConnections(nodeName string, conns int) error {
 }
 
 // Add node to list of nodes
-func (sch *Scheduler) registerNode(node *node.NodeInfo) error {
+func (sch *Scheduler) createNode(node *node.NodeSchema) error {
 
 	err := validate.Struct(node)
 	if err != nil {
@@ -92,8 +92,8 @@ func (sch *Scheduler) removeNodeForItem(item, nodeName string, force bool) error
 	return nil
 }
 
-// Get nodeInfo from storage
-func (sch *Scheduler) getNode(nodeName string) (*node.NodeInfo, error) {
+// Get NodeSchema from storage
+func (sch *Scheduler) getNode(nodeName string) (*node.NodeSchema, error) {
 
 	node, err := sch.Store.ReadNode(nodeName)
 	if err != nil {
@@ -106,10 +106,10 @@ func (sch *Scheduler) getNode(nodeName string) (*node.NodeInfo, error) {
 // Look for all the nodes that have a specific item,
 // then look for the node that has the least connection
 // if node not found, return nil
-func (sch *Scheduler) schedule(item string) (*node.NodeInfo, error) {
+func (sch *Scheduler) getPeers(item string) (*node.NodeSchema, error) {
 
 	// Init dummy candidate
-	candidate := &node.NodeInfo{
+	candidate := &node.NodeSchema{
 		Name:           "",
 		MaxConnections: 10,
 		Connections:    11,
