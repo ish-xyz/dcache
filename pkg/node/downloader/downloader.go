@@ -22,19 +22,21 @@ type KillSwitch struct {
 }
 
 type Downloader struct {
-	Stack  chan *Item    `validate:"required"`
-	Client *http.Client  `validate:"required"`
-	Logger *logrus.Entry `validate:"required"`
-	GC     *GC           `validate:"required"`
-	DryRun bool
+	Stack       chan *Item    `validate:"required"`
+	Client      *http.Client  `validate:"required"`
+	Logger      *logrus.Entry `validate:"required"`
+	GC          *GC           `validate:"required"`
+	DryRun      bool
+	MaxAttempts int `validate:"required"`
 }
 
 type Item struct {
 	Req      *http.Request
 	FilePath string
+	Attempts int
 }
 
-func NewDownloader(log *logrus.Entry, dataDir string, maxAtime, interval time.Duration, maxDiskUsage int) *Downloader {
+func NewDownloader(log *logrus.Entry, dataDir string, maxAtime, interval time.Duration, maxDiskUsage, maxAttempts int) *Downloader {
 
 	cache := &FilesCache{
 		AtimeStore: make(map[string]int64),
@@ -141,7 +143,11 @@ func (d *Downloader) Run() {
 						d.Logger.Errorf("failed to delete corrupt file %s with error %v", lastItem.FilePath, err)
 					}
 				}
-				//TODO: should notify scheduler that the peer didn't serve the file properly
+				// Push back into the queue to retry
+				if lastItem.Attempts <= d.MaxAttempts {
+					lastItem.Attempts += 1
+					d.Push(lastItem.Req, lastItem.FilePath)
+				}
 			}
 		}
 

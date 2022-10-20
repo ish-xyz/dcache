@@ -16,11 +16,12 @@ import (
 )
 
 var (
-	verbose        bool
-	scheme         = "http"
-	insecure       bool // insecure upstream connection
-	port           int
-	maxConnections int
+	verbose             bool
+	scheme              = "http"
+	insecure            bool // insecure upstream connection
+	port                int
+	maxConnections      int
+	maxDownloadAttempts = 10
 
 	gcMaxAtimeAge  string
 	gcInterval     string
@@ -69,7 +70,6 @@ func CLI() {
 	viper.BindPFlag("node.gc.maxAtimeAge", Cmd.PersistentFlags().Lookup("gc-max-atime-age"))
 	viper.BindPFlag("node.gc.interval", Cmd.PersistentFlags().Lookup("gc-interval"))
 	viper.BindPFlag("node.gc.maxDiskUsage", Cmd.PersistentFlags().Lookup("gc-max-disk-usage"))
-
 }
 
 func argumentsMapping() {
@@ -146,6 +146,7 @@ func exec(cmd *cobra.Command, args []string) {
 		gcMaxAtimeAge,
 		gcInterval,
 		gcMaxDiskUsage,
+		maxDownloadAttempts,
 	)
 	nt := notifier.NewNotifier(dataDir, logger.WithField("component", "node.notifier"))
 	nc := client.NewClient(name, nt, schedulerAddress, logger.WithField("component", "node.client"))

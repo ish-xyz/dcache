@@ -23,6 +23,7 @@ func TestPushOK(t *testing.T) {
 		maxAtime,
 		interval,
 		10*1024*1024*1024,
+		10,
 	)
 	myReq, _ := http.NewRequest(
 		"GET",
@@ -49,6 +50,7 @@ func TestQueueEmpty(t *testing.T) {
 		maxAtime,
 		interval,
 		10*1024*1024*1024,
+		10,
 	)
 
 	it, err := d.Pop(false)
@@ -70,6 +72,7 @@ func TestRunOK(t *testing.T) {
 		maxAtime,
 		interval,
 		10*1024*1024*1024,
+		10,
 	)
 	d.DryRun = true
 
@@ -85,7 +88,7 @@ func TestRunOK(t *testing.T) {
 	assert.Nil(t, statErr)
 	assert.Equal(t, statData.Name(), filepath.Base(myfile))
 
-	os.Remove("/tmp/test-data-download")
+	os.Remove(myfile)
 }
 
 func TestRunDownloadFailed(t *testing.T) {
@@ -100,6 +103,7 @@ func TestRunDownloadFailed(t *testing.T) {
 		maxAtime,
 		interval,
 		10*1024*1024*1024,
+		10,
 	)
 	d.DryRun = true
 
@@ -115,7 +119,7 @@ func TestRunDownloadFailed(t *testing.T) {
 	assert.NotNil(t, statErr)
 	assert.Equal(t, statData, nil)
 
-	os.Remove("/tmp/test-data-download")
+	os.Remove(myfile)
 }
 
 func TestRunDownloadKillSwitch(t *testing.T) {
@@ -130,6 +134,7 @@ func TestRunDownloadKillSwitch(t *testing.T) {
 		maxAtime,
 		interval,
 		10*1024*1024*1024,
+		10,
 	)
 	d.DryRun = true
 	killswitch.Trigger = true
@@ -144,5 +149,32 @@ func TestRunDownloadKillSwitch(t *testing.T) {
 	assert.Nil(t, myreqErr)
 	assert.Equal(t, 1, len(d.Stack))
 
-	os.Remove("/tmp/test-data-download")
+	os.Remove(myfile)
+}
+
+func TestRunDownloadFailedRetry(t *testing.T) {
+
+	logger := logrus.New()
+	myfile := "/tmp/test-data-download"
+	maxAtime, _ := time.ParseDuration("5m")
+	interval, _ := time.ParseDuration("5s")
+	d := NewDownloader(
+		logger.WithField("component", "downloader-testing"),
+		"/tmp/mydatadir",
+		maxAtime,
+		interval,
+		10*1024*1024*1024,
+		10,
+	)
+	d.DryRun = true
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	myreq, _ := http.NewRequest(http.MethodGet, srv.URL, nil)
+	d.Push(myreq, myfile)
+	d.Run()
+
+	assert.Equal(t, 1, len(d.Stack))
+	os.Remove(myfile)
 }

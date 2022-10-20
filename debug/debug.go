@@ -7,6 +7,14 @@ import (
 	"time"
 )
 
+type Blob struct {
+	Sha256        string
+	Blocks        int
+	BlocksSize    int
+	ContentLenght int
+	Origins       []string
+}
+
 // func Index(w http.ResponseWriter, r *http.Request) {
 // 	url := "http://upload.wikimedia.org/wikipedia/en/b/bc/Wiki.png"
 
