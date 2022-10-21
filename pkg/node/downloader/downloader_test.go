@@ -13,18 +13,28 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPushOK(t *testing.T) {
+var downloaderTestsDir string
+
+func setupDummyDownloader() *Downloader {
+	downloaderTestsDir = "/tmp/dcache/downloader-tests"
+	os.MkdirAll(downloaderTestsDir, os.FileMode(0755))
 	logger := logrus.New()
 	maxAtime, _ := time.ParseDuration("5m")
 	interval, _ := time.ParseDuration("5s")
 	d := NewDownloader(
 		logger.WithField("component", "downloader-testing"),
-		"/tmp/mydatadir",
+		downloaderTestsDir,
 		maxAtime,
 		interval,
 		10*1024*1024*1024,
 		10,
 	)
+	return d
+}
+
+func TestPushOK(t *testing.T) {
+
+	d := setupDummyDownloader()
 	myReq, _ := http.NewRequest(
 		"GET",
 		"https:/null.null",
@@ -41,17 +51,7 @@ func TestPushOK(t *testing.T) {
 }
 
 func TestQueueEmpty(t *testing.T) {
-	logger := logrus.New()
-	maxAtime, _ := time.ParseDuration("5m")
-	interval, _ := time.ParseDuration("5s")
-	d := NewDownloader(
-		logger.WithField("component", "downloader-testing"),
-		"/tmp/mydatadir",
-		maxAtime,
-		interval,
-		10*1024*1024*1024,
-		10,
-	)
+	d := setupDummyDownloader()
 
 	it, err := d.Pop(false)
 
@@ -62,18 +62,8 @@ func TestQueueEmpty(t *testing.T) {
 
 func TestRunOK(t *testing.T) {
 
-	logger := logrus.New()
-	myfile := "/tmp/test-data-download"
-	maxAtime, _ := time.ParseDuration("5m")
-	interval, _ := time.ParseDuration("5s")
-	d := NewDownloader(
-		logger.WithField("component", "downloader-testing"),
-		"/tmp/mydatadir",
-		maxAtime,
-		interval,
-		10*1024*1024*1024,
-		10,
-	)
+	d := setupDummyDownloader()
+	myfile := fmt.Sprintf("%s/myfile.test", downloaderTestsDir)
 	d.DryRun = true
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -93,18 +83,8 @@ func TestRunOK(t *testing.T) {
 
 func TestRunDownloadFailed(t *testing.T) {
 
-	logger := logrus.New()
-	myfile := "/tmp/test-data-download"
-	maxAtime, _ := time.ParseDuration("5m")
-	interval, _ := time.ParseDuration("5s")
-	d := NewDownloader(
-		logger.WithField("component", "downloader-testing"),
-		"/tmp/mydatadir",
-		maxAtime,
-		interval,
-		10*1024*1024*1024,
-		10,
-	)
+	d := setupDummyDownloader()
+	myfile := fmt.Sprintf("%s/myfile.test", downloaderTestsDir)
 	d.DryRun = true
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -124,18 +104,8 @@ func TestRunDownloadFailed(t *testing.T) {
 
 func TestRunDownloadKillSwitch(t *testing.T) {
 
-	logger := logrus.New()
-	myfile := "/tmp/test-data-download"
-	maxAtime, _ := time.ParseDuration("5m")
-	interval, _ := time.ParseDuration("5s")
-	d := NewDownloader(
-		logger.WithField("component", "downloader-testing"),
-		"/tmp/mydatadir",
-		maxAtime,
-		interval,
-		10*1024*1024*1024,
-		10,
-	)
+	d := setupDummyDownloader()
+	myfile := fmt.Sprintf("%s/myfile.test", downloaderTestsDir)
 	d.DryRun = true
 	killswitch.Trigger = true
 
@@ -154,18 +124,8 @@ func TestRunDownloadKillSwitch(t *testing.T) {
 
 func TestRunDownloadFailedRetry(t *testing.T) {
 
-	logger := logrus.New()
-	myfile := "/tmp/test-data-download"
-	maxAtime, _ := time.ParseDuration("5m")
-	interval, _ := time.ParseDuration("5s")
-	d := NewDownloader(
-		logger.WithField("component", "downloader-testing"),
-		"/tmp/mydatadir",
-		maxAtime,
-		interval,
-		10*1024*1024*1024,
-		10,
-	)
+	d := setupDummyDownloader()
+	myfile := fmt.Sprintf("%s/myfile.test", downloaderTestsDir)
 	d.DryRun = true
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

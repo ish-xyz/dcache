@@ -18,7 +18,6 @@ type Notifier struct {
 	DataDir       string
 	Logger        *logrus.Entry
 	Subscriptions []chan *Event
-	DryRun        bool
 }
 
 type INotifier interface {
@@ -32,7 +31,6 @@ func NewNotifier(dataDir string, log *logrus.Entry) *Notifier {
 		DataDir:       dataDir,
 		Logger:        log,
 		Subscriptions: make([]chan *Event, 0),
-		DryRun:        false,
 	}
 }
 
@@ -40,6 +38,17 @@ func (nt *Notifier) Subscribe(ev chan *Event) {
 	nt.mu.Lock()
 	nt.Subscriptions = append(nt.Subscriptions, ev)
 	nt.mu.Unlock()
+}
+
+func (nt *Notifier) Broadcast(subs []chan *Event, event *Event) {
+	for _, ch := range subs {
+		select {
+		case ch <- event:
+			nt.Logger.Debugf("successfully sent event %+v to %+v", event, ch)
+		default:
+			nt.Logger.Errorf("failed to send event %+v to %+v", event, ch)
+		}
+	}
 }
 
 func (nt *Notifier) Run() error {
@@ -51,11 +60,29 @@ func (nt *Notifier) Run() error {
 	defer watcher.Close()
 
 	done := make(chan bool)
+
+	// go func() {
+	// 	defer close(done)
+	// 	for {
+	// 		event := <-watcher.Events
+	// 		item := filepath.Base(event.Name)
+	// 		ntEvent := &Event{
+	// 			Item: item,
+	// 			Op:   int(event.Op),
+	// 		}
+
+	// 		nt.Broadcast(nt.Subscriptions, ntEvent)
+	// 	}
+	// }()
+
 	go func() {
 		defer close(done)
 		for {
+
 			select {
+
 			case event, ok := <-watcher.Events:
+
 				if !ok {
 					return
 				}
@@ -66,25 +93,15 @@ func (nt *Notifier) Run() error {
 					Op:   int(event.Op),
 				}
 
-				for _, ch := range nt.Subscriptions {
-					select {
-					case ch <- ntEvent:
-						nt.Logger.Debugf("successfully sent event %+v to %+v", ntEvent, ch)
-					default:
-						nt.Logger.Errorf("failed to send event %+v to %+v", ntEvent, ch)
-					}
-				}
+				nt.Broadcast(nt.Subscriptions, ntEvent)
+
 			case err, ok := <-watcher.Errors:
 				if !ok {
 					return
 				}
 				nt.Logger.Errorln("watcher error:", err)
-
-			default:
-				if nt.DryRun {
-					return
-				}
 			}
+
 		}
 	}()
 
