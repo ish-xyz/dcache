@@ -22,7 +22,7 @@ type Notifier struct {
 
 type INotifier interface {
 	Subscribe(ev chan *Event)
-	Run() error
+	Run(bool) error
 }
 
 func NewNotifier(dataDir string, log *logrus.Entry) *Notifier {
