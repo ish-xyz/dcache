@@ -1,8 +1,10 @@
 package notifier
 
 import (
+	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -27,27 +29,21 @@ func TestSubscribeOK(t *testing.T) {
 	assert.Equal(t, len(nt.Subscriptions), 1)
 }
 
-// Not working
-// func TestBroadcast(t *testing.T) {
-// 	nt := setup()
-// 	ch := make(chan *Event)
+// Fixed!!!!
+func TestBroadcast(t *testing.T) {
+	nt := setup()
+	ch := make(chan *Event)
+	event := &Event{"somepath", 16}
+	nt.Subscribe(ch)
 
-// 	event := &Event{"somepath", 1}
-// 	receivedEvent := &Event{}
-// 	chans := make([]chan *Event, 0)
-// 	chans = append(chans, ch)
-// 	nt.Broadcast(chans, event)
+	go nt.Run(true)
 
-// 	select {
-// 		case receivedEvent <- ch:
-// 			_ = ""
-// 		default:
-// 			_ = ""
-// 		}
-// 	}
+	time.Sleep(time.Second * 2)
 
-// 	assert.Equal(t, event, receivedEvent)
+	os.Create(fmt.Sprintf("%s/tmp.tmp", nt.DataDir))
 
-// 	//assert.NotNil(t, <-ch)
-// 	assert.Equal(t, len(nt.Subscriptions), 1)
-// }
+	receivedEvent := <-ch
+
+	assert.Equal(t, event, receivedEvent)
+	assert.Equal(t, len(nt.Subscriptions), 1)
+}

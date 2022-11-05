@@ -51,7 +51,7 @@ func (nt *Notifier) Broadcast(subs []chan *Event, event *Event) {
 	}
 }
 
-func (nt *Notifier) Run() error {
+func (nt *Notifier) Run(once bool) error {
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -60,25 +60,9 @@ func (nt *Notifier) Run() error {
 	defer watcher.Close()
 
 	done := make(chan bool)
-
-	// go func() {
-	// 	defer close(done)
-	// 	for {
-	// 		event := <-watcher.Events
-	// 		item := filepath.Base(event.Name)
-	// 		ntEvent := &Event{
-	// 			Item: item,
-	// 			Op:   int(event.Op),
-	// 		}
-
-	// 		nt.Broadcast(nt.Subscriptions, ntEvent)
-	// 	}
-	// }()
-
 	go func() {
 		defer close(done)
 		for {
-
 			select {
 
 			case event, ok := <-watcher.Events:
@@ -92,8 +76,11 @@ func (nt *Notifier) Run() error {
 					Item: item,
 					Op:   int(event.Op),
 				}
-
 				nt.Broadcast(nt.Subscriptions, ntEvent)
+
+				if once {
+					return
+				}
 
 			case err, ok := <-watcher.Errors:
 				if !ok {
@@ -101,7 +88,6 @@ func (nt *Notifier) Run() error {
 				}
 				nt.Logger.Errorln("watcher error:", err)
 			}
-
 		}
 	}()
 

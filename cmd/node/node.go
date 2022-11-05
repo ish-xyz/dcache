@@ -178,7 +178,7 @@ func exec(cmd *cobra.Command, args []string) {
 
 	logrus.Infoln("starting routines...")
 	go dw.Run()
-	go nt.Run()         // start filesystem watcher that creates sends events to subscribers
+	go nt.Run(false)    // start filesystem watcher that creates sends events to subscribers
 	go nc.NotifyItems() // Waits for events and notifies items to scheduler
 	go dw.GC.Run()      // Background routine that deletes unused files
 	srv.Run()
